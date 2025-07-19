@@ -1,5 +1,9 @@
+"use client";
+import { useTranslation } from "next-i18next";
 
 const FeaturesTape = () => {
+
+    const {t} = useTranslation();
     return (
       <div className="w-full text-white py-10 px-4 sm:px-[10em] lt-lg:grid lt-lg:grid-cols-2 lt-lg:text-center gap-4 bg-greentheme dark:bg-darkthemeitems mb-3 flex items-center justify-between flex-wrap">
         {/*Restaurants*/}
@@ -9,7 +13,7 @@ const FeaturesTape = () => {
             </svg>
             <div className="flex flex-col">
                 <h1 className="mb-[-.2em]">582</h1>
-                <h5 >Best Restaurants</h5>
+                <h5 >{t("featuresTape.bestRestaurants")}</h5>
             </div>
         </div>
         {/* Bookings */}
@@ -19,7 +23,7 @@ const FeaturesTape = () => {
             </svg>
             <div className="flex flex-col">
                 <h1 className="mb-[-.2em]">234</h1>
-                <h5 >Reservations</h5>
+                <h5 >{t("featuresTape.reservations")}</h5>
             </div>
         </div>
         {/* Clients */}
@@ -29,7 +33,7 @@ const FeaturesTape = () => {
             </svg>
             <div className="flex flex-col">
                 <h1 className="mb-[-.2em]">1021</h1>
-                <h5 >Clients</h5>
+                <h5 >{t("featuresTape.clients")}</h5>
             </div>
         </div>
         {/* Cities */}
@@ -39,7 +43,7 @@ const FeaturesTape = () => {
             </svg>
             <div className="flex flex-col">
                 <h1 className="mb-[-.2em]">494</h1>
-                <h5 >Cities</h5>
+                <h5 >{t("featuresTape.cities")}</h5>
             </div>
         </div>
       </div>

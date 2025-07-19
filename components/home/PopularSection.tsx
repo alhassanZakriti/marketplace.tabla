@@ -1,10 +1,11 @@
 "use client"
-
+import { useTranslation } from "react-i18next"
 import { usePopularRestaurants } from "../../hooks/UseRestaurants"
 import RestaurantCard from "../restaurant/RestaurantCard"
 import Link from "next/link"
 
 const PopularSection = () => {
+  const { t } = useTranslation()
   const { restaurants, loading, error, totalCount, retry, isRetrying, retryCount } = usePopularRestaurants(6)
 
   // Helper function to get safe rating value
@@ -25,14 +26,17 @@ const PopularSection = () => {
     <div id="popular" className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="text-center mb-8">
         <h1 className="text-3xl md:text-4xl font-bold text-blacktheme dark:text-textdarktheme mb-4">
-          Popular Restaurants
+          {t("popularSection.title", "Popular Restaurants")}
         </h1>
         <p className="text-lg text-greytheme dark:text-softwhitetheme max-w-2xl mx-auto">
-          Discover the most loved dining spots in your city
+          {t("popularSection.description", "Discover the most loved dining spots in your city")}
         </p>
         {totalCount > 0 && (
           <p className="text-sm text-greytheme dark:text-softwhitetheme mt-2">
-            Showing {restaurants.length} of {totalCount} restaurants
+            {t("popularSection.showingCount", "Showing {{count}} of {{total}} restaurants", {
+              count: restaurants.length,
+              total: totalCount,
+            })}
           </p>
         )}
       </div>
@@ -47,7 +51,7 @@ const PopularSection = () => {
                 name={restaurant.name}
                 address={restaurant.address}
                 rating={getSafeRating(restaurant.rating)}
-                category={restaurant.cuisine || "Unknown"}
+                category={restaurant.cuisine || t("popularSection.unknownCategory", "Unknown")}
                 isOpen={restaurant.status === "Open"}
                 imageUrl={getSafeImageUrl(restaurant.main_image)}
               />
@@ -71,7 +75,9 @@ const PopularSection = () => {
           <div className="col-span-3 text-center">
             <div className="flex items-center justify-center space-x-2">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-greentheme"></div>
-              <p className="text-greytheme dark:text-softwhitetheme">Loading popular restaurants...</p>
+              <p className="text-greytheme dark:text-softwhitetheme">
+                {t("popularSection.loading", "Loading popular restaurants...")}
+              </p>
             </div>
           </div>
         ) : isRetrying ? (
@@ -79,7 +85,10 @@ const PopularSection = () => {
             <div className="flex items-center justify-center space-x-2">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-yellowtheme"></div>
               <p className="text-yellowtheme">
-                Retrying... Attempt {retryCount}/{MAX_RETRIES}
+                {t("popularSection.retrying", "Retrying... Attempt {{current}}/{{max}}", {
+                  current: retryCount,
+                  max: MAX_RETRIES,
+                })}
               </p>
             </div>
           </div>
@@ -87,13 +96,15 @@ const PopularSection = () => {
           <div className="col-span-3 text-center">
             <div className="bg-softredtheme dark:bg-redtheme/20 border border-redtheme/20 dark:border-redtheme/40 rounded-lg p-6">
               <p className="text-redtheme dark:text-redtheme mb-4">
-                Failed to load restaurants after {MAX_RETRIES} attempts.
+                {t("popularSection.maxRetriesError", "Failed to load restaurants after {{max}} attempts.", {
+                  max: MAX_RETRIES,
+                })}
               </p>
               <button
                 onClick={retry}
                 className="px-4 py-2 bg-redtheme text-whitetheme rounded-lg hover:opacity-90 transition-colors"
               >
-                Try Again
+                {t("popularSection.tryAgain", "Try Again")}
               </button>
             </div>
           </div>
@@ -101,20 +112,25 @@ const PopularSection = () => {
           <div className="col-span-3 text-center">
             <div className="bg-softyellowtheme dark:bg-yellowtheme/20 border border-yellowtheme/20 dark:border-yellowtheme/40 rounded-lg p-6">
               <p className="text-yellowtheme dark:text-yellowtheme mb-4">
-                Error loading restaurants. Attempt {retryCount}/{MAX_RETRIES}
+                {t("popularSection.errorLoading", "Error loading restaurants. Attempt {{current}}/{{max}}", {
+                  current: retryCount,
+                  max: MAX_RETRIES,
+                })}
               </p>
               <button
                 onClick={retry}
                 className="px-4 py-2 bg-yellowtheme text-whitetheme rounded-lg hover:opacity-90 transition-colors"
               >
-                Retry Now
+                {t("popularSection.retryNow", "Retry Now")}
               </button>
             </div>
           </div>
         ) : restaurants.length === 0 ? (
           <div className="col-span-3 text-center">
             <div className="bg-softgreytheme dark:bg-darkthemeitems border border-softgreytheme dark:border-subblack rounded-lg p-6">
-              <p className="text-greytheme dark:text-softwhitetheme">No restaurants found.</p>
+              <p className="text-greytheme dark:text-softwhitetheme">
+                {t("popularSection.noRestaurants", "No restaurants found.")}
+              </p>
             </div>
           </div>
         ) : (
@@ -125,7 +141,7 @@ const PopularSection = () => {
               name={restaurant.name}
               address={restaurant.address}
               rating={getSafeRating(restaurant.rating)}
-              category={restaurant.cuisine || "Unknown"}
+              category={restaurant.cuisine || t("popularSection.unknownCategory", "Unknown")}
               isOpen={restaurant.status === "Open"}
               imageUrl={getSafeImageUrl(restaurant.main_image)}
             />
@@ -138,7 +154,7 @@ const PopularSection = () => {
           href="/search"
           className="bg-greentheme text-whitetheme px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition-all inline-block"
         >
-          View All Restaurants
+          {t("popularSection.viewAll", "View All Restaurants")}
         </Link>
       </div>
     </div>

@@ -1,10 +1,11 @@
 "use client"
-
+import { useTranslation } from "react-i18next"
 import { useRestaurants } from "../../hooks/UseRestaurants"
 import RestaurantCard from "../restaurant/RestaurantCard"
 import Link from "next/link"
 
 const BestInSection = () => {
+  const { t } = useTranslation()
   // Use our custom hook to fetch restaurants for Marrakech (city ID 5)
   const { restaurants, loading, error, totalCount, retry, isRetrying, retryCount } = useRestaurants(
     { city: "5", limit: 6 }, // Marrakech city ID and limit to 6 restaurants
@@ -29,15 +30,20 @@ const BestInSection = () => {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="text-center mb-12">
         <h1 className="text-3xl md:text-4xl font-bold text-blacktheme dark:text-textdarktheme mb-4">
-          Best Restaurants in Marrakech
+          {t("bestInSection.title", "Best Restaurants in Marrakech")}
         </h1>
         <p className="text-lg text-greytheme dark:text-softwhitetheme max-w-2xl mx-auto">
-          Discover the top-rated restaurants in Marrakech, offering a variety of cuisines and exceptional dining
-          experiences. Whether you're craving Italian, Chinese, or Japanese, we've got you covered!
+          {t(
+            "bestInSection.description",
+            "Discover the top-rated restaurants in Marrakech, offering a variety of cuisines and exceptional dining experiences. Whether you're craving Italian, Chinese, or Japanese, we've got you covered!"
+          )}
         </p>
         {totalCount > 0 && (
           <p className="text-sm text-greytheme dark:text-softwhitetheme mt-2">
-            Showing {restaurants.length} of {totalCount} restaurants
+            {t("bestInSection.showingCount", "Showing {{count}} of {{total}} restaurants", {
+              count: restaurants.length,
+              total: totalCount,
+            })}
           </p>
         )}
       </div>
@@ -60,7 +66,7 @@ const BestInSection = () => {
                   name={restaurant.name}
                   address={restaurant.address}
                   rating={getSafeRating(restaurant.rating)}
-                  category={restaurant.cuisine || "Unknown"}
+                  category={restaurant.cuisine || t("bestInSection.unknownCategory", "Unknown")}
                   isOpen={restaurant.status === "Open"}
                   imageUrl={getSafeImageUrl(restaurant.main_image)}
                 />
@@ -68,11 +74,12 @@ const BestInSection = () => {
             ))
           ) : (
             <div className="flex-none w-full text-center py-8">
-              <p className="text-greytheme dark:text-softwhitetheme">No restaurants found</p>
+              <p className="text-greytheme dark:text-softwhitetheme">
+                {t("bestInSection.noRestaurantsFound", "No restaurants found")}
+              </p>
             </div>
           )}
         </div>
-
         {/* Scroll indicator dots */}
         {restaurants.length > 0 && (
           <div className="flex justify-center mt-4 space-x-2">
@@ -94,7 +101,9 @@ const BestInSection = () => {
           <div className="col-span-3 text-center">
             <div className="flex items-center justify-center space-x-2">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-greentheme"></div>
-              <p className="text-greytheme dark:text-softwhitetheme">Loading best restaurants...</p>
+              <p className="text-greytheme dark:text-softwhitetheme">
+                {t("bestInSection.loading", "Loading best restaurants...")}
+              </p>
             </div>
           </div>
         ) : isRetrying ? (
@@ -102,7 +111,10 @@ const BestInSection = () => {
             <div className="flex items-center justify-center space-x-2">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-yellowtheme"></div>
               <p className="text-yellowtheme">
-                Retrying... Attempt {retryCount}/{MAX_RETRIES}
+                {t("bestInSection.retrying", "Retrying... Attempt {{current}}/{{max}}", {
+                  current: retryCount,
+                  max: MAX_RETRIES,
+                })}
               </p>
             </div>
           </div>
@@ -110,13 +122,15 @@ const BestInSection = () => {
           <div className="col-span-3 text-center">
             <div className="bg-softredtheme dark:bg-redtheme/20 border border-redtheme/20 dark:border-redtheme/40 rounded-lg p-6">
               <p className="text-redtheme dark:text-redtheme mb-4">
-                Failed to load restaurants after {MAX_RETRIES} attempts.
+                {t("bestInSection.maxRetriesError", "Failed to load restaurants after {{max}} attempts.", {
+                  max: MAX_RETRIES,
+                })}
               </p>
               <button
                 onClick={retry}
                 className="px-4 py-2 bg-redtheme text-whitetheme rounded-lg hover:opacity-90 transition-colors"
               >
-                Try Again
+                {t("bestInSection.tryAgain", "Try Again")}
               </button>
             </div>
           </div>
@@ -124,20 +138,25 @@ const BestInSection = () => {
           <div className="col-span-3 text-center">
             <div className="bg-softyellowtheme dark:bg-yellowtheme/20 border border-yellowtheme/20 dark:border-yellowtheme/40 rounded-lg p-6">
               <p className="text-yellowtheme dark:text-yellowtheme mb-4">
-                Error loading restaurants. Attempt {retryCount}/{MAX_RETRIES}
+                {t("bestInSection.errorLoading", "Error loading restaurants. Attempt {{current}}/{{max}}", {
+                  current: retryCount,
+                  max: MAX_RETRIES,
+                })}
               </p>
               <button
                 onClick={retry}
                 className="px-4 py-2 bg-yellowtheme text-whitetheme rounded-lg hover:opacity-90 transition-colors"
               >
-                Retry Now
+                {t("bestInSection.retryNow", "Retry Now")}
               </button>
             </div>
           </div>
         ) : restaurants.length === 0 ? (
           <div className="col-span-3 text-center">
             <div className="bg-softgreytheme dark:bg-darkthemeitems border border-softgreytheme dark:border-subblack rounded-lg p-6">
-              <p className="text-greytheme dark:text-softwhitetheme">No restaurants found in Marrakech.</p>
+              <p className="text-greytheme dark:text-softwhitetheme">
+                {t("bestInSection.noRestaurantsInCity", "No restaurants found in Marrakech.")}
+              </p>
             </div>
           </div>
         ) : (
@@ -148,7 +167,7 @@ const BestInSection = () => {
               name={restaurant.name}
               address={restaurant.address}
               rating={getSafeRating(restaurant.rating)}
-              category={restaurant.cuisine || "Unknown"}
+              category={restaurant.cuisine || t("bestInSection.unknownCategory", "Unknown")}
               isOpen={restaurant.status === "Open"}
               imageUrl={getSafeImageUrl(restaurant.main_image)}
             />
@@ -161,7 +180,7 @@ const BestInSection = () => {
           href="/search?city=5"
           className="bg-greentheme text-whitetheme px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition-all inline-block"
         >
-          View All Restaurants
+          {t("bestInSection.viewAll", "View All Restaurants")}
         </Link>
       </div>
     </div>

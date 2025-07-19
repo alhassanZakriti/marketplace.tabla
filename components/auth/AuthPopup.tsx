@@ -1,52 +1,58 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
-import { useForm } from "react-hook-form"
-import { X, Eye, EyeOff, Mail, Lock, User, AlertCircle } from "lucide-react"
-
-type AuthMode = "login" | "signup"
-
-interface AuthFormData {
-  name?: string
-  email: string
-  password: string
-  confirmPassword?: string
-}
+import { X, Eye, EyeOff, Mail, Lock, User, Building } from "lucide-react"
+import { dataProvider, type LoginCredentials, type RegisterData } from "../../lib/dataProvider"
 
 interface AuthPopupProps {
   isOpen: boolean
   onClose: () => void
-  onSuccess?: (data: AuthFormData) => void
-  authMode?: AuthMode
+  onSuccess: (data: any) => void
+  defaultTab?: "login" | "register" | "forgot"
 }
 
-export default function AuthPopup({ isOpen, onClose, onSuccess, authMode }: AuthPopupProps) {
-  const [mode, setMode] = useState<AuthMode>(authMode || "login")
+export default function AuthPopup({ isOpen, onClose, onSuccess, defaultTab = "login" }: AuthPopupProps) {
+  const [activeTab, setActiveTab] = useState<"login" | "register" | "forgot">(defaultTab)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-    watch,
-  } = useForm<AuthFormData>({
-    defaultValues: {
-      name: "",
-      email: "",
-      password: "",
-      confirmPassword: "",
-    },
+  // Login form state
+  const [loginForm, setLoginForm] = useState<LoginCredentials>({
+    username: "",
+    email: "",
+    password: "",
+    restaurant_id: 0,
   })
 
-  // Reset form when mode changes
-  useEffect(() => {
-    reset()
-  }, [mode, reset])
+  // Register form state
+  const [registerForm, setRegisterForm] = useState<RegisterData >({
+    username: "",
+    email: "",
+    password1: "",
+    password2: "",
+    first_name: "",
+    last_name: "",
+    phone: "",
+    restaurant_id: 0,
+  })
 
-  // Close popup when escape key is pressed
+  // Forgot password form state
+  const [forgotEmail, setForgotEmail] = useState("")
+
+  // Reset form states when tab changes
+  useEffect(() => {
+    setError(null)
+    setSuccess(null)
+    setShowPassword(false)
+    setShowConfirmPassword(false)
+  }, [activeTab])
+
+  // Handle escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose()
@@ -54,7 +60,6 @@ export default function AuthPopup({ isOpen, onClose, onSuccess, authMode }: Auth
 
     if (isOpen) {
       document.addEventListener("keydown", handleEscape)
-      // Prevent scrolling when popup is open
       document.body.style.overflow = "hidden"
     }
 
@@ -64,304 +69,395 @@ export default function AuthPopup({ isOpen, onClose, onSuccess, authMode }: Auth
     }
   }, [isOpen, onClose])
 
-  if (!isOpen) return null
-
-  const toggleMode = () => {
-    setMode(mode === "login" ? "signup" : "login")
-  }
-
-  const onSubmit = async (data: AuthFormData) => {
-    setIsLoading(true)
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      if (onSuccess) {
-        onSuccess(data)
-      }
-
-      // Close popup on success
-      onClose()
-    } catch (error) {
-      console.error("Authentication error:", error)
+      const response = await dataProvider.auth.login(loginForm)
+      setSuccess("Login successful!")
+      onSuccess(response)
+      setTimeout(() => {
+        onClose()
+      }, 1000)
+    } catch (err: any) {
+      setError(err.message || "Login failed. Please check your credentials.")
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
   }
 
-  const password = watch("password")
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+
+    // Validate passwords match
+    if (registerForm.password1 !== registerForm.password2) {
+      setError("Passwords do not match")
+      setLoading(false)
+      return
+    }
+
+    // Validate password strength
+    if (registerForm.password1.length < 8) {
+      setError("Password must be at least 8 characters long")
+      setLoading(false)
+      return
+    }
+
+    try {
+      const response = await dataProvider.auth.register(registerForm)
+      setSuccess("Registration successful! Please log in.")
+      setActiveTab("login")
+    } catch (err: any) {
+      setError(err.message || "Registration failed. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+
+    try {
+      await dataProvider.auth.forgotPassword(forgotEmail)
+      setSuccess("Password reset email sent! Check your inbox.")
+    } catch (err: any) {
+      setError(err.message || "Failed to send reset email. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-[300] flex items-center justify-center">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-blacktheme/20 backdrop-blur-sm transition-opacity duration-300"
         onClick={onClose}
+        aria-hidden="true"
       />
 
-      {/* Popup */}
-      <div
-        className="relative w-full max-w-md lt-sm:bottom-0 lt-sm:fixed lt-sm:rounded-b-none lt-sm:h-[80vh] lt-sm:overflow-y-auto rounded-2xl bg-white dark:bg-bgdarktheme2 shadow-xl p-6 md:p-8 overflow-hidden transition-all duration-300 animate-in fade-in zoom-in-95"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="absolute right-4 top-4 p-2 rounded-full text-gray-500 hover:bg-gray-100 dark:hover:bg-darkthemeitems transition-colors"
-          aria-label="Close"
-        >
-          <X size={20} />
-        </button>
-
+      {/* Modal */}
+      <div className="relative z-10 w-full max-w-md mx-4 bg-whitetheme dark:bg-darkthemeitems rounded-xl shadow-2xl transition-all duration-300 animate-in fade-in zoom-in-95">
         {/* Header */}
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold text-blacktheme dark:text-textdarktheme">
-            {mode === "login" ? "Welcome Back" : "Create Account"}
+        <div className="flex items-center justify-between p-6 border-b border-softgreytheme dark:border-subblack">
+          <h2 className="text-xl font-bold text-blacktheme dark:text-textdarktheme">
+            {activeTab === "login" && "Welcome Back"}
+            {activeTab === "register" && "Create Account"}
+            {activeTab === "forgot" && "Reset Password"}
           </h2>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">
-            {mode === "login"
-              ? "Sign in to access your account and reservations"
-              : "Join us to make restaurant reservations easier"}
-          </p>
-        </div>
-
-        {/* Social login buttons */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
           <button
-            type="button"
-            className="flex items-center justify-center gap-2 py-2.5 px-4 border border-gray-300 dark:border-darkthemeitems rounded-lg hover:bg-gray-50 dark:hover:bg-darkthemeitems/50 transition-colors"
+            onClick={onClose}
+            className="p-1 rounded-full hover:bg-softgreytheme dark:hover:bg-bgdarktheme2 transition-colors"
+            aria-label="Close"
           >
-            <svg className="w-5 h-5" viewBox="0 0 24 24">
-              <path
-                fill="currentColor"
-                d="M12 2.04C6.5 2.04 2 6.53 2 12.06C2 17.06 5.66 21.21 10.44 21.96V14.96H7.9V12.06H10.44V9.85C10.44 7.34 11.93 5.96 14.22 5.96C15.31 5.96 16.45 6.15 16.45 6.15V8.62H15.19C13.95 8.62 13.56 9.39 13.56 10.18V12.06H16.34L15.89 14.96H13.56V21.96A10 10 0 0 0 22 12.06C22 6.53 17.5 2.04 12 2.04Z"
-              />
-            </svg>
-            <span className="text-sm font-medium">Facebook</span>
-          </button>
-
-          <button
-            type="button"
-            className="flex items-center justify-center gap-2 py-2.5 px-4 border border-gray-300 dark:border-darkthemeitems rounded-lg hover:bg-gray-50 dark:hover:bg-darkthemeitems/50 transition-colors"
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24">
-              <path
-                fill="currentColor"
-                d="M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C8.36 19.27 5 16.25 5 12c0-4.1 3.2-7.27 7.2-7.27c3.09 0 4.9 1.97 4.9 1.97L19 4.72S16.56 2 12.1 2C6.42 2 2.03 6.8 2.03 12c0 5.05 4.13 10 10.22 10c5.35 0 9.25-3.67 9.25-9.09c0-1.15-.15-1.81-.15-1.81Z"
-              />
-            </svg>
-            <span className="text-sm font-medium">Google</span>
+            <X size={20} className="text-greytheme dark:text-textdarktheme/70" />
           </button>
         </div>
 
-        {/* Divider */}
-        <div className="flex items-center gap-2 mb-6">
-          <div className="h-px flex-1 bg-gray-200 dark:bg-darkthemeitems"></div>
-          <span className="text-sm text-gray-500 dark:text-gray-400">or continue with email</span>
-          <div className="h-px flex-1 bg-gray-200 dark:bg-darkthemeitems"></div>
-        </div>
+        {/* Tabs */}
+        {activeTab !== "forgot" && (
+          <div className="flex border-b border-softgreytheme dark:border-subblack">
+            <button
+              onClick={() => setActiveTab("login")}
+              className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
+                activeTab === "login"
+                  ? "text-greentheme border-b-2 border-greentheme bg-softgreentheme dark:bg-greentheme/20"
+                  : "text-greytheme dark:text-textdarktheme/70 hover:text-blacktheme dark:hover:text-textdarktheme"
+              }`}
+            >
+              Sign In
+            </button>
+            <button
+              onClick={() => setActiveTab("register")}
+              className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
+                activeTab === "register"
+                  ? "text-greentheme border-b-2 border-greentheme bg-softgreentheme dark:bg-greentheme/20"
+                  : "text-greytheme dark:text-textdarktheme/70 hover:text-blacktheme dark:hover:text-textdarktheme"
+              }`}
+            >
+              Sign Up
+            </button>
+          </div>
+        )}
 
-        {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {/* Name field (signup only) */}
-          {mode === "signup" && (
-            <div>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-500">
-                  <User size={18} />
-                </div>
-                <input
-                  type="text"
-                  id="name"
-                  className={`w-full pl-10 pr-4 py-3 rounded-lg border ${
-                    errors.name ? "border-redtheme" : "border-gray-300 dark:border-darkthemeitems"
-                  } bg-white dark:bg-bgdarktheme text-blacktheme dark:text-textdarktheme focus:ring-2 focus:ring-greentheme focus:border-transparent`}
-                  placeholder="Full Name"
-                  {...register("name", {
-                    required: "Name is required",
-                    minLength: {
-                      value: 2,
-                      message: "Name must be at least 2 characters",
-                    },
-                  })}
-                />
-              </div>
-              {errors.name && (
-                <div className="mt-1 flex items-center text-sm text-redtheme">
-                  <AlertCircle size={14} className="mr-1" />
-                  {errors.name.message}
-                </div>
-              )}
+        {/* Content */}
+        <div className="p-6">
+          {/* Error/Success Messages */}
+          {error && (
+            <div className="mb-4 p-3 bg-softredtheme dark:bg-redtheme/20 border border-redtheme/20 dark:border-redtheme/40 rounded-lg">
+              <p className="text-redtheme text-sm">{error}</p>
+            </div>
+          )}
+          {success && (
+            <div className="mb-4 p-3 bg-softgreentheme dark:bg-greentheme/20 border border-greentheme/20 dark:border-greentheme/40 rounded-lg">
+              <p className="text-greentheme text-sm">{success}</p>
             </div>
           )}
 
-          {/* Email field */}
-          <div>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-500">
-                <Mail size={18} />
-              </div>
-              <input
-                type="email"
-                id="email"
-                className={`w-full pl-10 pr-4 py-3 rounded-lg border ${
-                  errors.email ? "border-redtheme" : "border-gray-300 dark:border-darkthemeitems"
-                } bg-white dark:bg-bgdarktheme text-blacktheme dark:text-textdarktheme focus:ring-2 focus:ring-greentheme focus:border-transparent`}
-                placeholder="Email Address"
-                {...register("email", {
-                  required: "Email is required",
-                  pattern: {
-                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                    message: "Invalid email address",
-                  },
-                })}
-              />
-            </div>
-            {errors.email && (
-              <div className="mt-1 flex items-center text-sm text-redtheme">
-                <AlertCircle size={14} className="mr-1" />
-                {errors.email.message}
-              </div>
-            )}
-          </div>
-
-          {/* Password field */}
-          <div>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-500">
-                <Lock size={18} />
-              </div>
-              <input
-                type={showPassword ? "text" : "password"}
-                id="password"
-                className={`w-full pl-10 pr-12 py-3 rounded-lg border ${
-                  errors.password ? "border-redtheme" : "border-gray-300 dark:border-darkthemeitems"
-                } bg-white dark:bg-bgdarktheme text-blacktheme dark:text-textdarktheme focus:ring-2 focus:ring-greentheme focus:border-transparent`}
-                placeholder="Password"
-                {...register("password", {
-                  required: "Password is required",
-                  minLength: {
-                    value: 8,
-                    message: "Password must be at least 8 characters",
-                  },
-                })}
-              />
-              <button
-                type="button"
-                className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500"
-                onClick={() => setShowPassword(!showPassword)}
-                tabIndex={-1}
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-            {errors.password && (
-              <div className="mt-1 flex items-center text-sm text-redtheme">
-                <AlertCircle size={14} className="mr-1" />
-                {errors.password.message}
-              </div>
-            )}
-          </div>
-
-          {/* Confirm Password field (signup only) */}
-          {mode === "signup" && (
-            <div>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-500">
-                  <Lock size={18} />
+          {/* Login Form */}
+          {activeTab === "login" && (
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-blacktheme dark:text-textdarktheme mb-1">
+                  Username
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-greytheme dark:text-textdarktheme/70" />
+                  <input
+                    type="text"
+                    required
+                    value={loginForm.username}
+                    onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
+                    className="w-full pl-10 pr-4 py-3 border border-softgreytheme dark:border-subblack rounded-lg bg-whitetheme dark:bg-bgdarktheme2 text-blacktheme dark:text-textdarktheme placeholder:text-greytheme dark:placeholder:text-textdarktheme/50 focus:border-greentheme focus:ring-2 focus:ring-softgreentheme outline-none transition-colors"
+                    placeholder="Enter your username"
+                  />
                 </div>
-                <input
-                  type={showConfirmPassword ? "text" : "password"}
-                  id="confirmPassword"
-                  className={`w-full pl-10 pr-12 py-3 rounded-lg border ${
-                    errors.confirmPassword ? "border-redtheme" : "border-gray-300 dark:border-darkthemeitems"
-                  } bg-white dark:bg-bgdarktheme text-blacktheme dark:text-textdarktheme focus:ring-2 focus:ring-greentheme focus:border-transparent`}
-                  placeholder="Confirm Password"
-                  {...register("confirmPassword", {
-                    required: "Please confirm your password",
-                    validate: (value) => value === password || "Passwords do not match",
-                  })}
-                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-blacktheme dark:text-textdarktheme mb-1">Email</label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-greytheme dark:text-textdarktheme/70" />
+                  <input
+                    type="email"
+                    required
+                    value={loginForm.email}
+                    onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
+                    className="w-full pl-10 pr-4 py-3 border border-softgreytheme dark:border-subblack rounded-lg bg-whitetheme dark:bg-bgdarktheme2 text-blacktheme dark:text-textdarktheme placeholder:text-greytheme dark:placeholder:text-textdarktheme/50 focus:border-greentheme focus:ring-2 focus:ring-softgreentheme outline-none transition-colors"
+                    placeholder="Enter your email"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-blacktheme dark:text-textdarktheme mb-1">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-greytheme dark:text-textdarktheme/70" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    value={loginForm.password}
+                    onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                    className="w-full pl-10 pr-12 py-3 border border-softgreytheme dark:border-subblack rounded-lg bg-whitetheme dark:bg-bgdarktheme2 text-blacktheme dark:text-textdarktheme placeholder:text-greytheme dark:placeholder:text-textdarktheme/50 focus:border-greentheme focus:ring-2 focus:ring-softgreentheme outline-none transition-colors"
+                    placeholder="Enter your password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-greytheme dark:text-textdarktheme/70 hover:text-blacktheme dark:hover:text-textdarktheme transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-blacktheme dark:text-textdarktheme mb-1">
+                  Restaurant ID (Optional)
+                </label>
+                <div className="relative">
+                  <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-greytheme dark:text-textdarktheme/70" />
+                  <input
+                    type="number"
+                    value={loginForm.restaurant_id}
+                    onChange={(e) => setLoginForm({ ...loginForm, restaurant_id: Number(e.target.value) || 0 })}
+                    className="w-full pl-10 pr-4 py-3 border border-softgreytheme dark:border-subblack rounded-lg bg-whitetheme dark:bg-bgdarktheme2 text-blacktheme dark:text-textdarktheme placeholder:text-greytheme dark:placeholder:text-textdarktheme/50 focus:border-greentheme focus:ring-2 focus:ring-softgreentheme outline-none transition-colors"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  tabIndex={-1}
+                  onClick={() => setActiveTab("forgot")}
+                  className="text-sm text-greentheme hover:underline"
                 >
-                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  Forgot password?
                 </button>
               </div>
-              {errors.confirmPassword && (
-                <div className="mt-1 flex items-center text-sm text-redtheme">
-                  <AlertCircle size={14} className="mr-1" />
-                  {errors.confirmPassword.message}
-                </div>
-              )}
-            </div>
-          )}
 
-          {/* Forgot password (login only) */}
-          {mode === "login" && (
-            <div className="flex justify-end">
-              <button type="button" className="text-sm text-greentheme hover:underline">
-                Forgot password?
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? "Signing in..." : "Sign In"}
               </button>
-            </div>
+            </form>
           )}
 
-          {/* Submit button */}
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full py-3 px-4 bg-greentheme text-white rounded-lg hover:bg-opacity-90 transition-colors focus:outline-none focus:ring-2 focus:ring-greentheme focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
-          >
-            {isLoading ? (
-              <span className="flex items-center justify-center">
-                <svg
-                  className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                Processing...
-              </span>
-            ) : mode === "login" ? (
-              "Sign In"
-            ) : (
-              "Create Account"
-            )}
-          </button>
-        </form>
+          {/* Register Form */}
+          {activeTab === "register" && (
+            <form onSubmit={handleRegister} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-blacktheme dark:text-textdarktheme mb-1">
+                    First Name
+                  </label>
+                  <input
+                    type="text"
+                    value={registerForm.first_name}
+                    onChange={(e) => setRegisterForm({ ...registerForm, first_name: e.target.value })}
+                    className="w-full px-3 py-3 border border-softgreytheme dark:border-subblack rounded-lg bg-whitetheme dark:bg-bgdarktheme2 text-blacktheme dark:text-textdarktheme placeholder:text-greytheme dark:placeholder:text-textdarktheme/50 focus:border-greentheme focus:ring-2 focus:ring-softgreentheme outline-none transition-colors"
+                    placeholder="First name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-blacktheme dark:text-textdarktheme mb-1">
+                    Last Name
+                  </label>
+                  <input
+                    type="text"
+                    value={registerForm.last_name}
+                    onChange={(e) => setRegisterForm({ ...registerForm, last_name: e.target.value })}
+                    className="w-full px-3 py-3 border border-softgreytheme dark:border-subblack rounded-lg bg-whitetheme dark:bg-bgdarktheme2 text-blacktheme dark:text-textdarktheme placeholder:text-greytheme dark:placeholder:text-textdarktheme/50 focus:border-greentheme focus:ring-2 focus:ring-softgreentheme outline-none transition-colors"
+                    placeholder="Last name"
+                  />
+                </div>
+              </div>
 
-        {/* Toggle mode */}
-        <div className="mt-6 text-center">
-          <p className="text-gray-600 dark:text-gray-400">
-            {mode === "login" ? "Don't have an account?" : "Already have an account?"}
-            <button type="button" onClick={toggleMode} className="ml-1 text-greentheme hover:underline font-medium">
-              {mode === "login" ? "Sign up" : "Sign in"}
-            </button>
-          </p>
-        </div>
+              <div>
+                <label className="block text-sm font-medium text-blacktheme dark:text-textdarktheme mb-1">
+                  Username *
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-greytheme dark:text-textdarktheme/70" />
+                  <input
+                    type="text"
+                    required
+                    value={registerForm.username}
+                    onChange={(e) => setRegisterForm({ ...registerForm, username: e.target.value })}
+                    className="w-full pl-10 pr-4 py-3 border border-softgreytheme dark:border-subblack rounded-lg bg-whitetheme dark:bg-bgdarktheme2 text-blacktheme dark:text-textdarktheme placeholder:text-greytheme dark:placeholder:text-textdarktheme/50 focus:border-greentheme focus:ring-2 focus:ring-softgreentheme outline-none transition-colors"
+                    placeholder="Choose a username"
+                  />
+                </div>
+              </div>
 
-        {/* Terms and privacy */}
-        <div className="mt-6 text-center text-xs text-gray-500 dark:text-gray-400">
-          By continuing, you agree to our{" "}
-          <a href="/terms-conditions" className="text-greentheme hover:underline">
-            Terms of Service
-          </a>{" "}
-          and{" "}
-          <a href="/privacy-policy" className="text-greentheme hover:underline">
-            Privacy Policy
-          </a>
-          .
+              <div>
+                <label className="block text-sm font-medium text-blacktheme dark:text-textdarktheme mb-1">
+                  Email *
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-greytheme dark:text-textdarktheme/70" />
+                  <input
+                    type="email"
+                    required
+                    value={registerForm.email}
+                    onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
+                    className="w-full pl-10 pr-4 py-3 border border-softgreytheme dark:border-subblack rounded-lg bg-whitetheme dark:bg-bgdarktheme2 text-blacktheme dark:text-textdarktheme placeholder:text-greytheme dark:placeholder:text-textdarktheme/50 focus:border-greentheme focus:ring-2 focus:ring-softgreentheme outline-none transition-colors"
+                    placeholder="Enter your email"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-blacktheme dark:text-textdarktheme mb-1">
+                  Password *
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-greytheme dark:text-textdarktheme/70" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    value={registerForm.password1}
+                    onChange={(e) => setRegisterForm({ ...registerForm, password1: e.target.value })}
+                    className="w-full pl-10 pr-12 py-3 border border-softgreytheme dark:border-subblack rounded-lg bg-whitetheme dark:bg-bgdarktheme2 text-blacktheme dark:text-textdarktheme placeholder:text-greytheme dark:placeholder:text-textdarktheme/50 focus:border-greentheme focus:ring-2 focus:ring-softgreentheme outline-none transition-colors"
+                    placeholder="Create a password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-greytheme dark:text-textdarktheme/70 hover:text-blacktheme dark:hover:text-textdarktheme transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-blacktheme dark:text-textdarktheme mb-1">
+                  Confirm Password *
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-greytheme dark:text-textdarktheme/70" />
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    required
+                    value={registerForm.password2}
+                    onChange={(e) => setRegisterForm({ ...registerForm, password2: e.target.value })}
+                    className="w-full pl-10 pr-12 py-3 border border-softgreytheme dark:border-subblack rounded-lg bg-whitetheme dark:bg-bgdarktheme2 text-blacktheme dark:text-textdarktheme placeholder:text-greytheme dark:placeholder:text-textdarktheme/50 focus:border-greentheme focus:ring-2 focus:ring-softgreentheme outline-none transition-colors"
+                    placeholder="Confirm your password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-greytheme dark:text-textdarktheme/70 hover:text-blacktheme dark:hover:text-textdarktheme transition-colors"
+                  >
+                    {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? "Creating account..." : "Create Account"}
+              </button>
+            </form>
+          )}
+
+          {/* Forgot Password Form */}
+          {activeTab === "forgot" && (
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              <p className="text-sm text-greytheme dark:text-textdarktheme/70 mb-4">
+                Enter your email address and we'll send you a link to reset your password.
+              </p>
+
+              <div>
+                <label className="block text-sm font-medium text-blacktheme dark:text-textdarktheme mb-1">Email</label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-greytheme dark:text-textdarktheme/70" />
+                  <input
+                    type="email"
+                    required
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-softgreytheme dark:border-subblack rounded-lg bg-whitetheme dark:bg-bgdarktheme2 text-blacktheme dark:text-textdarktheme placeholder:text-greytheme dark:placeholder:text-textdarktheme/50 focus:border-greentheme focus:ring-2 focus:ring-softgreentheme outline-none transition-colors"
+                    placeholder="Enter your email"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? "Sending..." : "Send Reset Link"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("login")}
+                className="w-full text-sm text-greentheme hover:underline"
+              >
+                Back to Sign In
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </div>

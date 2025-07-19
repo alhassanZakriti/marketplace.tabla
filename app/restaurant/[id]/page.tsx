@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react"
 import type React from "react"
+import { useTranslation } from "react-i18next"
 import { Star, ChevronRight, ChevronLeft, ChevronDown, PlusSquare, Clock, MapPin, Phone, Globe } from "lucide-react"
 import ReservationProcess from "../../../components/restaurant/ReservationProcess"
 import PhotoPopup from "../../../components/restaurant/PhotoPopup"
 import ReviewForm, { type ReviewData } from "../../../components/restaurant/ReviewForm"
-import { useParams } from "next/navigation" // Changed from react-router
+import { useParams } from "next/navigation"
 import {
   dataProvider,
   type Restaurant,
@@ -16,10 +17,9 @@ import {
   type ExtraService,
   type Review,
   type GalleryItem,
-} from "../../../lib/dataProvider" // Using custom dataProvider
+} from "../../../lib/dataProvider"
 import { MapComponent } from "@/components/search/MapSection"
 
-// Update SelectedData to match the ReservationProcess component expectations
 type SelectedData = {
   reserveDate: string
   time: string
@@ -27,14 +27,14 @@ type SelectedData = {
   offer?: OfferType | null
 }
 
-// Loading skeleton component
 const LoadingSkeleton = ({ className = "" }: { className?: string }) => (
   <div className={`animate-pulse bg-softgreytheme dark:bg-bgdarktheme2 rounded ${className}`}></div>
 )
 
 export default function RestaurantPage() {
+  const { t } = useTranslation()
   const params = useParams()
-  const id = params.id as string // Get ID from Next.js useParams
+  const id = params.id as string
 
   const [restaurantInfo, setRestaurantInfo] = useState<Restaurant | null>(null)
   const [restaurantLoading, setRestaurantLoading] = useState(true)
@@ -60,106 +60,98 @@ export default function RestaurantPage() {
   const [galleryLoading, setGalleryLoading] = useState(true)
   const [galleryError, setGalleryError] = useState<string | null>(null)
 
-  // Fetch all data concurrently
   useEffect(() => {
     if (!id) return
 
     const fetchData = async () => {
-      // Fetch Restaurant Info
       setRestaurantLoading(true)
       try {
         const data = await dataProvider.restaurants.getRestaurant(id)
         setRestaurantInfo(data)
         setRestaurantError(null)
       } catch (err: any) {
-        setRestaurantError(err.message || "Failed to fetch restaurant info")
+        setRestaurantError(err.message || t("restaurant.errorFetchInfo"))
       } finally {
         setRestaurantLoading(false)
       }
 
-      // Fetch Opening Hours
       setOpeningHoursLoading(true)
       try {
         const data = await dataProvider.restaurants.getRestaurantAvailability(id)
         setOpeningHours(data)
         setOpeningHoursError(null)
       } catch (err: any) {
-        setOpeningHoursError(err.message || "Failed to fetch opening hours")
+        setOpeningHoursError(err.message || t("restaurant.errorFetchHours"))
       } finally {
         setOpeningHoursLoading(false)
       }
 
-      // Fetch Menu
       setMenuLoading(true)
       try {
         const data = await dataProvider.restaurants.getRestaurantMenu(id)
         setMenu(data)
         setMenuError(null)
       } catch (err: any) {
-        setMenuError(err.message || "Failed to fetch menu")
+        setMenuError(err.message || t("restaurant.errorFetchMenu"))
       } finally {
         setMenuLoading(false)
       }
 
-      // Fetch Reviews
       setReviewsLoading(true)
       try {
         const data = await dataProvider.restaurants.getRestaurantReviews(id)
         setReviews(data)
         setReviewsError(null)
       } catch (err: any) {
-        setReviewsError(err.message || "Failed to fetch reviews")
+        setReviewsError(err.message || t("restaurant.errorFetchReviews"))
       } finally {
         setReviewsLoading(false)
       }
 
-      // Fetch Extra Services
       setExtraServicesLoading(true)
       try {
         const data = await dataProvider.restaurants.getRestaurantServices(id)
         setExtraServices(data)
         setExtraServicesError(null)
       } catch (err: any) {
-        setExtraServicesError(err.message || "Failed to fetch extra services")
+        setExtraServicesError(err.message || t("restaurant.errorFetchServices"))
       } finally {
         setExtraServicesLoading(false)
       }
 
-      // Fetch Gallery
       setGalleryLoading(true)
       try {
         const data = await dataProvider.restaurants.getRestaurantGallery(id)
         setGallery(data)
         setGalleryError(null)
       } catch (err: any) {
-        setGalleryError(err.message || "Failed to fetch gallery")
+        setGalleryError(err.message || t("restaurant.errorFetchGallery"))
       } finally {
         setGalleryLoading(false)
       }
     }
 
     fetchData()
-  }, [id])
+  }, [id, t])
 
   useEffect(() => {
-    const restaurantName = restaurantInfo?.name || "Restaurant"
-    document.title = `${restaurantName} - Tabla | Taste Morocco's Best`
-  }, [restaurantInfo])
+    const restaurantName = restaurantInfo?.name || t("restaurant.defaultName")
+    document.title = `${restaurantName} - Tabla | ${t("restaurant.tasteMoroccoBest")}`
+  }, [restaurantInfo, t])
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
-  const [showAllMenu, setShowAllMenu] = useState(false) // This state is not used in the provided code, keeping for consistency
+  const [showAllMenu, setShowAllMenu] = useState(false)
   const [showReservationProcess, setShowReservationProcess] = useState(false)
   const [touchStartX, setTouchStartX] = useState<number | null>(null)
   const [touchEndX, setTouchEndX] = useState<number | null>(null)
 
-  // Use restaurant gallery images if available, otherwise fallback to placeholder images
   const mainImages =
     restaurantInfo?.gallery && restaurantInfo.gallery.length > 0
       ? restaurantInfo.gallery.map((img) => img.file)
       : [
-          "/placeholder.svg?height=400&width=800",
-          "/placeholder.svg?height=400&width=800",
-          "/placeholder.svg?height=400&width=800",
+          "https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png",
+          "https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png",
+          "https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png",
         ]
 
   const nextImage = () => {
@@ -169,7 +161,6 @@ export default function RestaurantPage() {
     setCurrentImageIndex((prevIndex) => (prevIndex - 1 + mainImages.length) % mainImages.length)
   }
 
-  // Swipe event handlers for the image gallery
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     setTouchStartX(e.targetTouches[0].clientX)
   }
@@ -215,16 +206,14 @@ export default function RestaurantPage() {
 
   const handleSubmitReview = (reviewData: ReviewData) => {
     console.log("Review submitted:", reviewData)
-    alert("Thank you for your review!") // Placeholder for actual submission logic
+    alert(t("restaurant.thankYouReview"))
     setShowWriteReview(false)
   }
 
-  // Helper function to check if menu has any items
   const hasMenuItems = (menuCategories: MenuCategory[]): boolean => {
     return menuCategories.some((category) => category.menus?.some((menu) => menu.items && menu.items.length > 0))
   }
 
-  // Get total number of categories and menus for display
   const getTotalMenuCount = (menuCategories: MenuCategory[]): number => {
     return menuCategories.reduce((total, category) => {
       return total + (category.menus ? category.menus.length : 0)
@@ -233,32 +222,31 @@ export default function RestaurantPage() {
 
   const labelReviews = (rating: number | null | undefined): string => {
     if (rating === undefined || rating === null || isNaN(rating)) {
-      return "No Rating"
+      return t("restaurant.noRating")
     }
     if (rating < 2) {
-      return "Very Bad"
+      return t("restaurant.veryBad")
     } else if (rating >= 2 && rating < 3) {
-      return "Bad"
+      return t("restaurant.bad")
     } else if (rating >= 3 && rating < 4) {
-      return "Average"
+      return t("restaurant.average")
     } else if (rating >= 4 && rating < 4.5) {
-      return "Good"
+      return t("restaurant.good")
     } else {
-      return "Very Good"
+      return t("restaurant.veryGood")
     }
   }
 
-  // Helper function to get current status
   const getCurrentStatus = (): { text: string; color: string } => {
-    if (openingHoursLoading) return { text: "Loading...", color: "text-subblack" }
+    if (openingHoursLoading) return { text: t("restaurant.loading"), color: "text-subblack" }
     if (openingHoursError || !openingHours || openingHours.length === 0) {
-      return { text: "Hours N/A", color: "text-subblack" }
+      return { text: t("restaurant.hoursNA"), color: "text-subblack" }
     }
     const today = openingHours.find((day) => day.is_today)
-    if (!today) return { text: "Hours N/A", color: "text-subblack" }
-    if (today.is_closed) return { text: "Closed", color: "text-redtheme" }
+    if (!today) return { text: t("restaurant.hoursNA"), color: "text-subblack" }
+    if (today.is_closed) return { text: t("restaurant.closed"), color: "text-redtheme" }
     if (!today.opening_time || !today.closing_time) {
-      return { text: "Hours N/A", color: "text-subblack" }
+      return { text: t("restaurant.hoursNA"), color: "text-subblack" }
     }
     try {
       const [openHour, openMinute] = today.opening_time.split(":").map(Number)
@@ -268,23 +256,21 @@ export default function RestaurantPage() {
       const openMinutes = openHour * 60 + openMinute
       const closeMinutes = closeHour * 60 + closeMinute
 
-      // Handle overnight closing times (e.g., 22:00 - 02:00)
       const isOpen =
         closeMinutes > openMinutes
           ? nowMinutes >= openMinutes && nowMinutes < closeMinutes
           : nowMinutes >= openMinutes || nowMinutes < closeMinutes
 
       return {
-        text: isOpen ? "Open Now" : "Closed",
+        text: isOpen ? t("restaurant.openNow") : t("restaurant.closed"),
         color: isOpen ? "text-greentheme" : "text-redtheme",
       }
     } catch (error) {
-      return { text: "Hours N/A", color: "text-subblack" }
+      return { text: t("restaurant.hoursNA"), color: "text-subblack" }
     }
   }
   const currentStatus = getCurrentStatus()
 
-  // Show main loading state if restaurant data is loading
   if (restaurantLoading) {
     return (
       <div className="min-h-screen dark:text-white bg-softgreytheme dark:bg-bgdarktheme transition-colors duration-200">
@@ -302,18 +288,17 @@ export default function RestaurantPage() {
     )
   }
 
-  // Show error state if restaurant data failed to load
   if (restaurantError) {
     return (
       <div className="min-h-screen dark:text-white bg-softgreytheme dark:bg-bgdarktheme transition-colors duration-200">
         <div className="container mx-auto px-4 py-6 max-w-6xl">
           <div className="text-center py-20">
-            <h1 className="text-2xl font-bold text-redtheme mb-4">Error Loading Restaurant</h1>
+            <h1 className="text-2xl font-bold text-redtheme mb-4">{t("restaurant.errorLoading")}</h1>
             <p className="text-subblack dark:text-textdarktheme/70 mb-6">
-              We couldn't load the restaurant information. Please try again later.
+              {t("restaurant.couldNotLoadInfo")}
             </p>
             <button onClick={() => window.location.reload()} className="btn-primary">
-              Try Again
+              {t("restaurant.tryAgain")}
             </button>
           </div>
         </div>
@@ -340,7 +325,7 @@ export default function RestaurantPage() {
             aria-hidden="true"
           />
           <div className="mx-auto z-[400] max-w-2xl p-4 bg-whitetheme dark:bg-darkthemeitems rounded-lg shadow-lg transition-all duration-300 animate-in fade-in zoom-in-95">
-            <h1 className="mb-6 text-2xl font-bold text-blacktheme dark:text-textdarktheme">Write a Review</h1>
+            <h1 className="mb-6 text-2xl font-bold text-blacktheme dark:text-textdarktheme">{t("restaurant.writeReview")}</h1>
             <ReviewForm onSubmit={handleSubmitReview} />
           </div>
         </div>
@@ -353,7 +338,7 @@ export default function RestaurantPage() {
             setShowPhotoPopup(false)
             setSelectedPhoto("")
           }}
-          altText="Gallery photo"
+          altText={t("restaurant.galleryPhoto")}
         />
       )}
       {shouldShowBook && (
@@ -362,7 +347,7 @@ export default function RestaurantPage() {
             className="fixed z-[200] bottom-[40px] shadow-xl w-[20em] btn-special"
             onClick={() => setShowReservationProcess(true)}
           >
-            Book Your Table
+            {t("restaurant.bookYourTable")}
           </button>
         </div>
       )}
@@ -377,7 +362,7 @@ export default function RestaurantPage() {
           >
             <img
               src={mainImages[currentImageIndex] || "/placeholder.svg"}
-              alt={`${restaurantInfo?.name || "Restaurant"} interior`}
+              alt={`${restaurantInfo?.name || t("restaurant.defaultName")} ${t("restaurant.interior")}`}
               className="object-cover w-full h-full"
               onError={(e) => {
                 e.currentTarget.src = "/placeholder.svg?height=400&width=800"
@@ -388,14 +373,14 @@ export default function RestaurantPage() {
                 <button
                   onClick={prevImage}
                   className="absolute left-4 top-1/2 -translate-y-1/2 bg-whitetheme/80 dark:bg-darkthemeitems/80 rounded-full p-2 shadow-md hover:bg-whitetheme dark:hover:bg-darkthemeitems transition-colors"
-                  aria-label="Previous image"
+                  aria-label={t("restaurant.previousImage")}
                 >
                   <ChevronLeft className="h-5 w-5 text-blacktheme dark:text-textdarktheme" />
                 </button>
                 <button
                   onClick={nextImage}
                   className="absolute right-4 top-1/2 -translate-y-1/2 bg-whitetheme/80 dark:bg-darkthemeitems/80 rounded-full p-2 shadow-md hover:bg-whitetheme dark:hover:bg-darkthemeitems transition-colors"
-                  aria-label="Next image"
+                  aria-label={t("restaurant.nextImage")}
                 >
                   <ChevronRight className="h-5 w-5 text-blacktheme dark:text-textdarktheme" />
                 </button>
@@ -412,7 +397,7 @@ export default function RestaurantPage() {
                     className={`flex-shrink-0 h-2 w-2 rounded-full ${
                       index === currentImageIndex ? "bg-whitetheme" : "bg-whitetheme/50"
                     }`}
-                    aria-label={`View image ${index + 1}`}
+                    aria-label={t("restaurant.viewImage", { number: index + 1 })}
                   />
                 ))}
               </div>
@@ -421,7 +406,7 @@ export default function RestaurantPage() {
         </div>
         <div className="flex justify-center mb-6">
           <button className="btn-special w-[20em]" onClick={() => setShowReservationProcess(true)}>
-            Book
+            {t("restaurant.book")}
           </button>
         </div>
         {/* Restaurant Info */}
@@ -429,12 +414,12 @@ export default function RestaurantPage() {
           <div className="flex justify-between lt-sm:flex-col lt-sm:items-center lt-sm:gap-5 items-start mb-4">
             <div>
               <h1 className="text-3xl font-bold text-blacktheme dark:text-textdarktheme mb-2 transition-colors">
-                {restaurantInfo?.name || "Restaurant Name"}
+                {restaurantInfo?.name || t("restaurant.defaultName")}
               </h1>
               <div className="flex items-center gap-4 text-sm text-subblack dark:text-textdarktheme/80 mb-2 transition-colors">
                 <span className="flex items-center gap-1">
                   <span className="inline-block w-2 h-2 bg-greentheme rounded-full"></span>
-                  {restaurantInfo?.category_name || "Category"}
+                  {restaurantInfo?.category_name || t("restaurant.category")}
                 </span>
                 <span className={`flex items-center gap-1 ${currentStatus.color}`}>
                   <span
@@ -450,13 +435,13 @@ export default function RestaurantPage() {
                 </span>
               </div>
               <p className="text-subblack dark:text-textdarktheme/70 text-sm max-w-2xl transition-colors">
-                {restaurantInfo?.description || "Welcome to our restaurant. We look forward to serving you!"}
+                {restaurantInfo?.description || t("restaurant.welcome")}
               </p>
             </div>
             <div className="flex flex-col items-center">
               <div className="bg-whitetheme dark:bg-darkthemeitems shadow-md rounded-lg p-3 text-center transition-colors">
                 <div className="text-3xl font-bold text-yellowtheme">
-                  {restaurantInfo?.rating ? restaurantInfo.rating.toFixed(1) : "N/A"}
+                  {restaurantInfo?.rating ? restaurantInfo.rating.toFixed(1) : t("restaurant.na")}
                 </div>
                 <div className="flex justify-center">
                   {[1, 2, 3, 4, 5].map((star) => (
@@ -472,27 +457,27 @@ export default function RestaurantPage() {
                 </div>
                 <div className="text-greentheme font-medium text-sm">{labelReviews(restaurantInfo?.rating)}</div>
                 <div className="text-subblack dark:text-textdarktheme/70 text-xs transition-colors">
-                  Based on {Array.isArray(reviews) ? reviews.length : 0} reviews
+                  {t("restaurant.basedOnReviews", { count: Array.isArray(reviews) ? reviews.length : 0 })}
                 </div>
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2 text-center">
                 <div className="bg-whitetheme dark:bg-darkthemeitems shadow-sm rounded p-2 transition-colors">
                   <div className="text-yellowtheme font-bold">
-                    {restaurantInfo?.food_rating ? restaurantInfo.food_rating.toFixed(1) : "N/A"}
+                    {restaurantInfo?.food_rating ? restaurantInfo.food_rating.toFixed(1) : t("restaurant.na")}
                   </div>
-                  <div className="text-xs text-subblack dark:text-textdarktheme/70 transition-colors">Food</div>
+                  <div className="text-xs text-subblack dark:text-textdarktheme/70 transition-colors">{t("restaurant.food")}</div>
                 </div>
                 <div className="bg-whitetheme dark:bg-darkthemeitems shadow-sm rounded p-2 transition-colors">
                   <div className="text-yellowtheme font-bold">
-                    {restaurantInfo?.service_rating ? restaurantInfo.service_rating.toFixed(1) : "N/A"}
+                    {restaurantInfo?.service_rating ? restaurantInfo.service_rating.toFixed(1) : t("restaurant.na")}
                   </div>
-                  <div className="text-xs text-subblack dark:text-textdarktheme/70 transition-colors">Service</div>
+                  <div className="text-xs text-subblack dark:text-textdarktheme/70 transition-colors">{t("restaurant.service")}</div>
                 </div>
                 <div className="bg-whitetheme dark:bg-darkthemeitems shadow-sm rounded p-2 transition-colors">
                   <div className="text-yellowtheme font-bold">
-                    {restaurantInfo?.ambience_rating ? restaurantInfo.ambience_rating.toFixed(1) : "N/A"}
+                    {restaurantInfo?.ambience_rating ? restaurantInfo.ambience_rating.toFixed(1) : t("restaurant.na")}
                   </div>
-                  <div className="text-xs text-subblack dark:text-textdarktheme/70 transition-colors">Ambiance</div>
+                  <div className="text-xs text-subblack dark:text-textdarktheme/70 transition-colors">{t("restaurant.ambiance")}</div>
                 </div>
               </div>
             </div>
@@ -501,7 +486,7 @@ export default function RestaurantPage() {
           {offers && offers.length > 0 && (
             <div className="bg-whitetheme dark:bg-darkthemeitems shadow-sm rounded-lg p-4 mb-8 transition-colors">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-lg dark:text-textdarktheme transition-colors">Tabla Offers</h3>
+                <h3 className="font-bold text-lg dark:text-textdarktheme transition-colors">{t("restaurant.tablaOffers")}</h3>
               </div>
               <div className="space-y-4">
                 {offers.map((offer, index) => (
@@ -511,13 +496,13 @@ export default function RestaurantPage() {
                   >
                     <div className="flex flex-col">
                       <span className="dark:text-textdarktheme text-greentheme font-bold">
-                        {offer.title || "Special Offer"}
+                        {offer.title || t("restaurant.specialOffer")}
                       </span>
                       <span className="text-sm dark:text-textdarktheme/70 text-subblack">
-                        {offer.description || "Limited time offer"}
+                        {offer.description || t("restaurant.limitedTimeOffer")}
                       </span>
                       <span className="text-xs dark:text-textdarktheme/50 text-subblack/70">
-                        {offer.percentage ? `${offer.percentage}% off` : ""}
+                        {offer.percentage ? t("restaurant.percentOff", { percent: offer.percentage }) : ""}
                       </span>
                     </div>
                     <button
@@ -532,7 +517,7 @@ export default function RestaurantPage() {
                         }))
                       }}
                     >
-                      Select Offer
+                      {t("restaurant.selectOffer")}
                     </button>
                   </div>
                 ))}
@@ -543,10 +528,10 @@ export default function RestaurantPage() {
         {/* Menu Section */}
         <section className="mb-12">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold text-blacktheme dark:text-textdarktheme transition-colors">Our menu</h2>
+            <h2 className="text-2xl font-bold text-blacktheme dark:text-textdarktheme transition-colors">{t("restaurant.ourMenu")}</h2>
             <div className="flex items-center gap-2">
               <span className="text-sm bg-softgreentheme dark:bg-greentheme/20 text-greentheme dark:text-white px-2 py-1 rounded transition-colors">
-                Average Price {restaurantInfo?.average_price || 0} MAD
+                {t("restaurant.averagePrice", { price: restaurantInfo?.average_price || 0 })}
               </span>
             </div>
           </div>
@@ -554,17 +539,17 @@ export default function RestaurantPage() {
             {menuLoading ? (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-greentheme mx-auto"></div>
-                <p className="mt-2 text-subblack dark:text-textdarktheme/70">Loading menu...</p>
+                <p className="mt-2 text-subblack dark:text-textdarktheme/70">{t("restaurant.loadingMenu")}</p>
               </div>
             ) : menuError ? (
               <div className="text-center py-8">
-                <p className="text-redtheme">Error loading menu. Please try again later.</p>
+                <p className="text-redtheme">{t("restaurant.errorLoadingMenu")}</p>
               </div>
             ) : !menu || menu.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-subblack dark:text-textdarktheme/70">No menu available at the moment.</p>
+                <p className="text-subblack dark:text-textdarktheme/70">{t("restaurant.noMenuAvailable")}</p>
                 <p className="text-xs text-subblack dark:text-textdarktheme/50 mt-2">
-                  Check back soon for our delicious offerings!
+                  {t("restaurant.checkBackSoon")}
                 </p>
               </div>
             ) : (
@@ -575,35 +560,35 @@ export default function RestaurantPage() {
                     className="border-b border-softgreytheme dark:border-textdarktheme/10 pb-4 last:border-b-0"
                   >
                     <h3 className="text-lg font-semibold text-blacktheme dark:text-textdarktheme mb-3 transition-colors">
-                      {category.name || `Category ${categoryIdx + 1}`}
+                      {category.name || t("restaurant.categoryNumber", { number: categoryIdx + 1 })}
                     </h3>
                     {category.menus && category.menus.length > 0 ? (
                       <div className="space-y-4">
                         {category.menus.map((menu, menuIdx) => (
                           <div key={menuIdx} className="ml-4">
                             <h4 className="font-medium text-blacktheme dark:text-textdarktheme mb-2 transition-colors">
-                              {menu.name || `Menu ${menuIdx + 1}`}
+                              {menu.name || t("restaurant.menuNumber", { number: menuIdx + 1 })}
                             </h4>
                             {menu.items && menu.items.length > 0 ? (
                               <div className="space-y-2 ml-4">
                                 {menu.items.map((item, itemIdx) => (
                                   <div key={itemIdx} className="flex justify-between items-center py-1">
                                     <span className="text-subblack dark:text-textdarktheme/80 transition-colors">
-                                      {item.name || `Item ${itemIdx + 1}`}
+                                      {item.name || t("restaurant.itemNumber", { number: itemIdx + 1 })}
                                     </span>
                                     <span className="text-greentheme dark:text-white font-medium">
                                       {item.price
                                         ? typeof item.price === "number"
-                                          ? `${item.price} MAD`
+                                          ? t("restaurant.priceMAD", { price: item.price })
                                           : item.price
-                                        : "Price N/A"}
+                                        : t("restaurant.priceNA")}
                                     </span>
                                   </div>
                                 ))}
                               </div>
                             ) : (
                               <p className="text-sm text-subblack dark:text-textdarktheme/50 ml-4 italic">
-                                Menu items coming soon...
+                                {t("restaurant.menuItemsComingSoon")}
                               </p>
                             )}
                           </div>
@@ -611,7 +596,7 @@ export default function RestaurantPage() {
                       </div>
                     ) : (
                       <p className="text-sm text-subblack dark:text-textdarktheme/50 ml-4 italic">
-                        Menu details coming soon...
+                        {t("restaurant.menuDetailsComingSoon")}
                       </p>
                     )}
                   </div>
@@ -619,10 +604,10 @@ export default function RestaurantPage() {
                 <div className="mt-6 pt-4 border-t border-softgreytheme dark:border-textdarktheme/10">
                   <div className="flex justify-between items-center text-sm text-subblack dark:text-textdarktheme/70">
                     <span>
-                      {menu.length} {menu.length === 1 ? "category" : "categories"} • {getTotalMenuCount(menu)}{" "}
-                      {getTotalMenuCount(menu) === 1 ? "menu" : "menus"}
+                      {menu.length} {menu.length === 1 ? t("restaurant.category") : t("restaurant.categories")} • {getTotalMenuCount(menu)}{" "}
+                      {getTotalMenuCount(menu) === 1 ? t("restaurant.menu") : t("restaurant.menus")}
                     </span>
-                    {hasMenuItems(menu) && <span className="text-greentheme dark:text-white">Items available</span>}
+                    {hasMenuItems(menu) && <span className="text-greentheme dark:text-white">{t("restaurant.itemsAvailable")}</span>}
                   </div>
                 </div>
               </div>
@@ -632,7 +617,7 @@ export default function RestaurantPage() {
         {/* Location & Hours */}
         <section className="mb-12">
           <h2 className="text-2xl font-bold text-blacktheme dark:text-textdarktheme mb-4 transition-colors">
-            Location & Hours Of Work
+            {t("restaurant.locationAndHours")}
           </h2>
           <div className="grid md:grid-cols-2 gap-6">
             <div className="bg-whitetheme dark:bg-darkthemeitems shadow-sm rounded-lg overflow-hidden transition-colors">
@@ -645,10 +630,10 @@ export default function RestaurantPage() {
               <div className="p-4">
                 <h3 className="font-bold mb-1 dark:text-textdarktheme transition-colors flex items-center gap-2">
                   <MapPin className="h-4 w-4" />
-                  {restaurantInfo?.city_name || "Location"}
+                  {restaurantInfo?.city_name || t("restaurant.location")}
                 </h3>
                 <p className="text-subblack dark:text-textdarktheme/70 mb-2 transition-colors">
-                  {restaurantInfo?.address || "Address not available"}
+                  {restaurantInfo?.address || t("restaurant.addressNotAvailable")}
                 </p>
                 <div className="space-y-1 text-sm">
                   {restaurantInfo?.website && (
@@ -681,7 +666,7 @@ export default function RestaurantPage() {
             <div className="bg-whitetheme dark:bg-darkthemeitems shadow-sm rounded-lg p-4 transition-colors">
               <h3 className="font-bold mb-3 dark:text-textdarktheme transition-colors flex items-center gap-2">
                 <Clock className="h-4 w-4" />
-                Hours of Operation
+                {t("restaurant.hoursOfOperation")}
               </h3>
               {openingHoursLoading ? (
                 <div className="space-y-2">
@@ -690,9 +675,9 @@ export default function RestaurantPage() {
                   ))}
                 </div>
               ) : openingHoursError ? (
-                <p className="text-redtheme text-sm">Error loading hours. Please try again later.</p>
+                <p className="text-redtheme text-sm">{t("restaurant.errorLoadingHours")}</p>
               ) : !openingHours || openingHours.length === 0 ? (
-                <p className="text-subblack dark:text-textdarktheme/70 text-sm">Hours not available</p>
+                <p className="text-subblack dark:text-textdarktheme/70 text-sm">{t("restaurant.hoursNotAvailable")}</p>
               ) : (
                 <div className="space-y-2">
                   {openingHours.map((day, index) => (
@@ -702,7 +687,7 @@ export default function RestaurantPage() {
                           day.is_today ? "font-bold text-greentheme" : ""
                         } dark:text-textdarktheme transition-colors`}
                       >
-                        {day.day_name || `Day ${index + 1}`}
+                        {day.day_name  || t("restaurant.dayNumber", { number: index + 1 })}
                       </span>
                       <span
                         className={`${
@@ -710,10 +695,10 @@ export default function RestaurantPage() {
                         } transition-colors`}
                       >
                         {day.is_closed
-                          ? "Closed"
+                          ? t("restaurant.closed")
                           : day.opening_time && day.closing_time
                             ? `${day.opening_time} - ${day.closing_time}`
-                            : "Hours N/A"}
+                            : t("restaurant.hoursNA")}
                       </span>
                     </div>
                   ))}
@@ -725,7 +710,7 @@ export default function RestaurantPage() {
         {/* Extra Services */}
         <section className="mb-12">
           <h2 className="text-2xl font-bold text-blacktheme dark:text-textdarktheme mb-4 transition-colors">
-            Extra Services
+            {t("restaurant.extraServices")}
           </h2>
           {extraServicesLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -735,11 +720,11 @@ export default function RestaurantPage() {
             </div>
           ) : extraServicesError ? (
             <div className="text-center py-8">
-              <p className="text-redtheme">Error loading services. Please try again later.</p>
+              <p className="text-redtheme">{t("restaurant.errorLoadingServices")}</p>
             </div>
           ) : !extraServices || extraServices.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-subblack dark:text-textdarktheme/70">No extra services available at the moment.</p>
+              <p className="text-subblack dark:text-textdarktheme/70">{t("restaurant.noExtraServices")}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -750,7 +735,7 @@ export default function RestaurantPage() {
                 >
                   <PlusSquare className="h-6 w-6 text-greentheme mb-2" />
                   <span className="text-sm font-medium dark:text-textdarktheme transition-colors">
-                    {service.name || "Service"}
+                    {service.name || t("restaurant.service")}
                   </span>
                   {service.description && (
                     <span className="text-xs text-subblack dark:text-textdarktheme/70 mt-1">{service.description}</span>
@@ -764,7 +749,7 @@ export default function RestaurantPage() {
         {gallery && gallery.length > 0 && (
           <section className="mb-12">
             <h2 className="text-2xl font-bold text-blacktheme dark:text-textdarktheme mb-4 transition-colors">
-              User Photos ({gallery.length})
+              {t("restaurant.userPhotos", { count: gallery.length })}
             </h2>
             {galleryLoading ? (
               <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
@@ -778,7 +763,7 @@ export default function RestaurantPage() {
                   <div key={index} className="relative aspect-square rounded-md overflow-hidden cursor-pointer">
                     <img
                       src={photo.file || "/placeholder.svg?height=100&width=100"}
-                      alt={`User photo ${index + 1}`}
+                      alt={t("restaurant.userPhotoNumber", { number: index + 1 })}
                       className="w-full h-full object-cover hover:scale-105 transition-transform"
                       onClick={() => {
                         setSelectedPhoto(photo.file)
@@ -790,7 +775,7 @@ export default function RestaurantPage() {
                     />
                     {gallery.length > 8 && index === 7 && (
                       <div className="absolute inset-0 bg-blacktheme/60 flex items-center justify-center">
-                        <span className="text-whitetheme font-bold text-xs">+{gallery.length - 8} more</span>
+                        <span className="text-whitetheme font-bold text-xs">{t("restaurant.morePhotos", { count: gallery.length - 8 })}</span>
                       </div>
                     )}
                   </div>
@@ -803,10 +788,10 @@ export default function RestaurantPage() {
         <section className="mb-12">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-2xl font-bold text-blacktheme dark:text-textdarktheme transition-colors">
-              Reviews {Array.isArray(reviews) && reviews.length > 0 && `(${reviews.length})`}
+              {t("restaurant.reviews")} {Array.isArray(reviews) && reviews.length > 0 && `(${reviews.length})`}
             </h2>
             <button className="border border-softgreytheme dark:border-textdarktheme/20 rounded px-3 py-1 text-sm flex items-center gap-1 dark:text-textdarktheme transition-colors">
-              Sort by <ChevronDown className="h-4 w-4" />
+              {t("restaurant.sortBy")} <ChevronDown className="h-4 w-4" />
             </button>
           </div>
           {reviewsLoading ? (
@@ -817,13 +802,13 @@ export default function RestaurantPage() {
             </div>
           ) : reviewsError ? (
             <div className="text-center py-8 mb-6">
-              <p className="text-redtheme">Error loading reviews. Please try again later.</p>
+              <p className="text-redtheme">{t("restaurant.errorLoadingReviews")}</p>
             </div>
           ) : !reviews || !Array.isArray(reviews) || reviews.length === 0 ? (
             <div className="text-center py-8 mb-6">
-              <p className="text-subblack dark:text-textdarktheme/70">No reviews yet.</p>
+              <p className="text-subblack dark:text-textdarktheme/70">{t("restaurant.noReviewsYet")}</p>
               <p className="text-xs text-subblack dark:text-textdarktheme/50 mt-2">
-                Be the first to share your experience!
+                {t("restaurant.beFirstShare")}
               </p>
             </div>
           ) : (
@@ -843,13 +828,13 @@ export default function RestaurantPage() {
                       <div className="flex items-start gap-3">
                         <div className="w-10 h-10 rounded-full bg-softgreytheme dark:bg-bgdarktheme2 flex items-center justify-center">
                           <span className="text-xs font-medium text-blacktheme dark:text-textdarktheme">
-                            {review.customer ? `U${review.customer}` : "User"}
+                            {review.customer ? t("restaurant.userShort", { id: review.customer }) : t("restaurant.user")}
                           </span>
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <h4 className="font-medium dark:text-textdarktheme transition-colors">
-                              {review.customer ? `User #${review.customer}` : "Anonymous User"}
+                              {review.customer ? t("restaurant.userLong", { id: review.customer }) : t("restaurant.anonymousUser")}
                             </h4>
                             <div className="flex">
                               {[1, 2, 3, 4, 5].map((star) => (
@@ -865,7 +850,7 @@ export default function RestaurantPage() {
                             </div>
                           </div>
                           <p className="text-subblack dark:text-textdarktheme/70 text-sm transition-colors">
-                            {review.description || "No comment provided"}
+                            {review.description || t("restaurant.noCommentProvided")}
                           </p>
                           {review.created_at && (
                             <p className="text-xs text-subblack dark:text-textdarktheme/50 mt-1">
@@ -880,7 +865,7 @@ export default function RestaurantPage() {
             </div>
           )}
           <button className="btn-primary" onClick={() => setShowWriteReview(true)}>
-            Submit a Review
+            {t("restaurant.submitReview")}
           </button>
         </section>
       </div>

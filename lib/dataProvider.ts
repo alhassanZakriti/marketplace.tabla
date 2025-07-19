@@ -19,7 +19,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
     if (token) {
       defaultOptions.headers = {
         ...defaultOptions.headers,
-        Authorization: `Bearer ${token}`,
+        Authorization: `Token ${token}`, // Using Token format as per Django REST Framework
       }
     }
   }
@@ -28,7 +28,8 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
     const response = await fetch(url, defaultOptions)
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.detail || errorData.message || `HTTP error! status: ${response.status}`)
     }
 
     return await response.json()
@@ -239,47 +240,59 @@ export const cityDataProvider = {
   },
 }
 
-// Auth data provider
+// Auth data provider - Updated to match your API
 export interface User {
-  id: string
+  id: string | number
+  username: string
   email: string
-  name: string
+  first_name?: string
+  last_name?: string
   phone?: string
   avatar?: string
+  restaurant_id?: number
 }
 
 export interface LoginCredentials {
+  username: string
   email: string
   password: string
+  restaurant_id?: number
 }
 
 export interface RegisterData {
+  username: string
   email: string
-  password: string
-  name: string
+  password1: string
+  password2: string
+  first_name?: string
+  last_name?: string
   phone?: string
+  restaurant_id?: number
 }
 
 export interface AuthResponse {
-  user: User
-  token: string
-  refresh_token?: string
+  key: string // Django REST Framework returns 'key' for token
+  user?: User
 }
 
 export const authDataProvider = {
-  // Login
+  // Login - Updated to match your API structure
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-    const response = await apiRequest<AuthResponse>("auth/login", {
+    const response = await apiRequest<AuthResponse>("api/v1/auth/login/", {
       method: "POST",
-      body: JSON.stringify(credentials),
+      body: JSON.stringify({
+        username: credentials.username,
+        email: credentials.email,
+        password: credentials.password,
+        restaurant_id: credentials.restaurant_id || 0,
+      }),
     })
 
     // Store auth data
     if (typeof window !== "undefined") {
-      localStorage.setItem("auth_token", response.token)
-      localStorage.setItem("user", JSON.stringify(response.user))
-      if (response.refresh_token) {
-        localStorage.setItem("refresh_token", response.refresh_token)
+      localStorage.setItem("auth_token", response.key)
+      if (response.user) {
+        localStorage.setItem("user", JSON.stringify(response.user))
       }
     }
 
@@ -288,7 +301,7 @@ export const authDataProvider = {
 
   // Register
   register: async (userData: RegisterData): Promise<AuthResponse> => {
-    return apiRequest<AuthResponse>("auth/register", {
+    return apiRequest<AuthResponse>("api/v1/auth/registration/", {
       method: "POST",
       body: JSON.stringify(userData),
     })
@@ -297,7 +310,7 @@ export const authDataProvider = {
   // Logout
   logout: async (): Promise<void> => {
     try {
-      await apiRequest("auth/logout", { method: "POST" })
+      await apiRequest("api/v1/auth/logout/", { method: "POST" })
     } catch (error) {
       console.error("Logout API error:", error)
     } finally {
@@ -305,7 +318,6 @@ export const authDataProvider = {
       if (typeof window !== "undefined") {
         localStorage.removeItem("auth_token")
         localStorage.removeItem("user")
-        localStorage.removeItem("refresh_token")
       }
     }
   },
@@ -325,9 +337,22 @@ export const authDataProvider = {
 
   // Forgot password
   forgotPassword: async (email: string): Promise<{ message: string }> => {
-    return apiRequest<{ message: string }>("auth/forgot-password", {
+    return apiRequest<{ message: string }>("api/v1/auth/password/reset/", {
       method: "POST",
       body: JSON.stringify({ email }),
+    })
+  },
+
+  // Get user profile
+  getProfile: async (): Promise<User> => {
+    return apiRequest<User>("api/v1/auth/user/")
+  },
+
+  // Update user profile
+  updateProfile: async (userData: Partial<User>): Promise<User> => {
+    return apiRequest<User>("api/v1/auth/user/", {
+      method: "PATCH",
+      body: JSON.stringify(userData),
     })
   },
 }

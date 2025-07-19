@@ -1,15 +1,17 @@
 "use client"
 import { motion, AnimatePresence } from "framer-motion"
 import type React from "react"
-
 import { useState, useEffect } from "react"
+import { useTranslation } from "react-i18next"
 import SearchBar from "../search/SearchBar"
 import SearchBarMobile from "../search/SearchBarMobile"
 import heroImage from "../../public/hero4.jpg"
 import locationIcon from "../../public/location.svg"
 import { ChevronDown } from "lucide-react"
+import Image from "next/image"
 
 function HomeHero() {
+  const { t } = useTranslation()
   const [showScrollButton, setShowScrollButton] = useState(true)
 
   useEffect(() => {
@@ -39,7 +41,6 @@ function HomeHero() {
   const scrollToPopular = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault()
     const popularSection = document.getElementById("popular")
-
     if (popularSection) {
       popularSection.scrollIntoView({
         behavior: "smooth",
@@ -56,7 +57,7 @@ function HomeHero() {
         <img
           src={heroImage.src || "/placeholder.svg"}
           className="w-full h-full object-cover object-center"
-          alt="Restaurant background"
+          alt={t("hero.backgroundAlt", "Restaurant background")}
         />
       </div>
 
@@ -72,13 +73,20 @@ function HomeHero() {
           >
             {/* Location Badge */}
             <div className="inline-flex items-center gap-2 px-4] py-1.5 px-2 lt-md:mt-20 bg-white/10 backdrop-blur-sm rounded-full mb-4">
-              <img src={locationIcon || "/placeholder.svg"} className="w-4 h-4" alt="Location icon" />
-              <span className="text-white font-medium text-sm">at Tabla.ma</span>
+              <Image
+                src={locationIcon}
+                className="w-4 h-4"
+                width={20}
+                height={20}
+                
+                alt={t("hero.locationIconAlt", "Location icon")}
+              />
+              <span className="text-white font-medium text-sm">{t("hero.locationBadge", "at Tabla.ma")}</span>
             </div>
 
             {/* Main Heading */}
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white leading-tight tracking-tight mb-6 max-w-4xl mx-auto">
-              Discover Your Next Table
+              {t("hero.mainHeading", "Discover Your Next Table")}
             </h1>
           </motion.div>
 
@@ -93,7 +101,6 @@ function HomeHero() {
             <div className="hidden sm:block">
               <SearchBar />
             </div>
-
             {/* Mobile Search */}
             <div className="sm:hidden">
               <SearchBarMobile />
@@ -116,10 +123,10 @@ function HomeHero() {
               href="#popular"
               onClick={scrollToPopular}
               className="flex flex-col items-center gap-2 cursor-pointer group"
-              aria-label="Scroll to popular restaurants"
+              aria-label={t("hero.scrollAriaLabel", "Scroll to popular restaurants")}
             >
               <span className="text-white text-sm font-medium opacity-80 group-hover:opacity-100 transition-opacity">
-                Explore More
+                {t("hero.exploreMore", "Explore More")}
               </span>
               <div className="p-3 bg-white/20 backdrop-blur-sm rounded-full group-hover:bg-white/30 transition-all duration-300 shadow-lg">
                 <ChevronDown size={24} className="text-white animate-bounce" />
