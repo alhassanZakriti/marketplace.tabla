@@ -1,11 +1,14 @@
 
 import { Metadata } from "next";
+import { useTranslation } from "react-i18next";
 
 export const metadata: Metadata = {
   title: "About Us - Tabla | Taste Morocco's Best",
 };
 
 export default function AboutUsPage() {
+
+  const {t} = useTranslation();
 
     return (
       <div className="bg-whitetheme dark:bg-bgdarktheme min-h-screen">
@@ -23,9 +26,9 @@ export default function AboutUsPage() {
           </div>
           <div className="absolute inset-0 flex items-center z-20">
             <div className="container mx-auto px-4">
-              <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">About Us</h1>
+              <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">{t("about.title")}</h1>
               <p className="text-xl text-white/90 max-w-2xl">
-                Connecting food lovers with exceptional dining experiences since 2018
+                {t("about.description")}
               </p>
             </div>
           </div>

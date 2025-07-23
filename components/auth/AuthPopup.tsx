@@ -205,7 +205,7 @@ export default function AuthPopup({ isOpen, onClose, onSuccess, defaultTab = "lo
           {/* Login Form */}
           {activeTab === "login" && (
             <form onSubmit={handleLogin} className="space-y-4">
-              <div>
+              {/* <div>
                 <label className="block text-sm font-medium text-blacktheme dark:text-textdarktheme mb-1">
                   Username
                 </label>
@@ -220,7 +220,7 @@ export default function AuthPopup({ isOpen, onClose, onSuccess, defaultTab = "lo
                     placeholder="Enter your username"
                   />
                 </div>
-              </div>
+              </div> */}
 
               <div>
                 <label className="block text-sm font-medium text-blacktheme dark:text-textdarktheme mb-1">Email</label>
@@ -261,21 +261,6 @@ export default function AuthPopup({ isOpen, onClose, onSuccess, defaultTab = "lo
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-blacktheme dark:text-textdarktheme mb-1">
-                  Restaurant ID (Optional)
-                </label>
-                <div className="relative">
-                  <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-greytheme dark:text-textdarktheme/70" />
-                  <input
-                    type="number"
-                    value={loginForm.restaurant_id}
-                    onChange={(e) => setLoginForm({ ...loginForm, restaurant_id: Number(e.target.value) || 0 })}
-                    className="w-full pl-10 pr-4 py-3 border border-softgreytheme dark:border-subblack rounded-lg bg-whitetheme dark:bg-bgdarktheme2 text-blacktheme dark:text-textdarktheme placeholder:text-greytheme dark:placeholder:text-textdarktheme/50 focus:border-greentheme focus:ring-2 focus:ring-softgreentheme outline-none transition-colors"
-                    placeholder="0"
-                  />
-                </div>
-              </div>
 
               <div className="flex items-center justify-between">
                 <button

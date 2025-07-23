@@ -9,8 +9,7 @@ import Pagination from "../../components/search/Pagination"
 import { Calendar, Clock, Filter, MapPin, Users } from "lucide-react"
 import ReservationProcess from "../../components/restaurant/ReservationProcess"
 import { useSearchParams } from "next/navigation"
-import { useCities } from "../../hooks/UseCities"
-import { useRestaurants } from "../../hooks/UseRestaurants"
+import { useCities, useRestaurants } from "@/hooks/api"
 import { MapProvider } from "@/providers/map-provider"
 import { useTranslation } from "react-i18next"
 
@@ -43,34 +42,38 @@ const SearchPage = () => {
   const cityParam = searchParams.get("city") || ""
   const searchTermParam = searchParams.get("term") || ""
 
+  // React Query hooks
   const {
-    cities,
-    loading: citiesLoading,
+    data: citiesData,
+    isLoading: citiesLoading,
     error: citiesError,
-    retry: retryCities,
-    isRetrying: isCitiesRetrying,
-    retryCount: citiesRetryCount,
+    refetch: refetchCities,
   } = useCities()
 
   const {
-    restaurants,
-    loading: restaurantsLoading,
+    data: restaurantsData,
+    isLoading: restaurantsLoading,
     error: restaurantsError,
-    totalCount,
     refetch: refetchRestaurants,
-    retry: retryRestaurants,
-    isRetrying: isRestaurantsRetrying,
-    retryCount: restaurantsRetryCount,
-  } = useRestaurants(
-    {
-      city: cityParam,
-      term: searchTermParam,
-      page: currentPage,
-      limit: 10,
-    },
-    { autoFetch: true },
-  )
+  } = useRestaurants({
+    city: cityParam,
+    term: searchTermParam,
+    page: currentPage,
+    limit: 10,
+  })
 
+  // Extract data from API responses
+  const cities = citiesData?.results || []
+  const restaurants = (restaurantsData?.results || []).map(restaurant => ({
+    ...restaurant,
+    distance: restaurant.distance ?? null, // Transform undefined to null
+    status: (restaurant.status || "Closed") as "Closed" | "Open", // Ensure status is defined
+    main_image: restaurant.main_image ?? null, // Transform undefined to null
+    location: (restaurant.location && restaurant.location.length >= 2 
+      ? [restaurant.location[0], restaurant.location[1]] 
+      : null) as [number, number] | null, // Transform to tuple or null
+  }))
+  const totalCount = restaurantsData?.count || 0
   const totalPages = Math.ceil(totalCount / 10)
 
   const getCityDisplayName = () => {
@@ -118,11 +121,6 @@ const SearchPage = () => {
     console.log("Filters changed:", newFilters)
     setFilters(newFilters)
   }
-
-  const MAX_RETRIES = 3
-  const isInitialLoading = restaurantsLoading && restaurantsRetryCount === 0
-  const hasMaxRetriesError = restaurantsError && restaurantsRetryCount >= MAX_RETRIES
-  const canRetry = restaurantsError && restaurantsRetryCount < MAX_RETRIES
 
   const cityDisplayName = getCityDisplayName()
 
@@ -182,7 +180,7 @@ const SearchPage = () => {
                 <MapPin size={16} className="mr-1 text-greentheme" />
                 <span>
                   {t("search.showingResultsNear")}{" "}
-                  {citiesLoading || isCitiesRetrying ? (
+                  {citiesLoading ? (
                     <span className="inline-flex items-center">
                       <div className="animate-spin rounded-full h-3 w-3 border-b border-greentheme mr-1"></div>
                       {t("search.loading")}
@@ -209,8 +207,8 @@ const SearchPage = () => {
             {/* Filters */}
             {shownFilters && <FiltersSection onFiltersChange={handleFiltersChange} />}
 
-            {/* Loading/Error States for Restaurants */}
-            {isInitialLoading && (
+            {/* Loading State */}
+            {restaurantsLoading && (
               <div className="text-center py-12">
                 <div className="flex items-center justify-center space-x-2">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-greentheme"></div>
@@ -219,25 +217,15 @@ const SearchPage = () => {
               </div>
             )}
 
-            {isRestaurantsRetrying && (
-              <div className="text-center py-8">
-                <div className="flex items-center justify-center space-x-2">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-yellowtheme"></div>
-                  <p className="text-yellowtheme">
-                    {t("search.retryingAttempt", { current: restaurantsRetryCount, max: MAX_RETRIES })}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {hasMaxRetriesError && (
+            {/* Error State */}
+            {restaurantsError && !restaurantsLoading && (
               <div className="text-center py-8">
                 <div className="bg-softredtheme dark:bg-redtheme/20 border border-redtheme/20 dark:border-redtheme/40 rounded-lg p-6 max-w-md mx-auto">
                   <p className="text-redtheme dark:text-redtheme mb-4">
-                    {t("search.failedToLoadRestaurants", { attempts: MAX_RETRIES })}
+                    {t("search.errorLoadingRestaurants")}
                   </p>
                   <button
-                    onClick={retryRestaurants}
+                    onClick={() => refetchRestaurants()}
                     className="px-4 py-2 bg-redtheme text-whitetheme rounded-lg hover:opacity-90 transition-colors"
                   >
                     {t("search.tryAgain")}
@@ -246,24 +234,8 @@ const SearchPage = () => {
               </div>
             )}
 
-            {canRetry && (
-              <div className="text-center py-8">
-                <div className="bg-softyellowtheme dark:bg-yellowtheme/20 border border-yellowtheme/20 dark:border-yellowtheme/40 rounded-lg p-6 max-w-md mx-auto">
-                  <p className="text-yellowtheme dark:text-yellowtheme mb-4">
-                    {t("search.errorLoadingRestaurants", { current: restaurantsRetryCount, max: MAX_RETRIES })}
-                  </p>
-                  <button
-                    onClick={retryRestaurants}
-                    className="px-4 py-2 bg-yellowtheme text-whitetheme rounded-lg hover:opacity-90 transition-colors"
-                  >
-                    {t("search.retryNow")}
-                  </button>
-                </div>
-              </div>
-            )}
-
             {/* Main Content */}
-            {!isInitialLoading && !hasMaxRetriesError && !canRetry && (
+            {!restaurantsLoading && !restaurantsError && (
               <div className="flex flex-col md:flex-row gap-6 mt-8">
                 {/* Restaurant List */}
                 <div className="w-full md:w-7/12 lg:w-8/12">

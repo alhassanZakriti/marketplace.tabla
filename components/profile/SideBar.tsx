@@ -90,7 +90,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeSection, setActiveSectio
           <button
             key={item.id}
             onClick={() => setActiveSection(item.id as ActiveSection)}
-            className={`p-3 rounded-full ${
+            className={`p-3 rounded-full cursor-pointer ${
               activeSection === item.id ? "bg-greentheme text-whitetheme" : "text-blacktheme dark:text-textdarktheme"
             }`}
             aria-label={item.label}
@@ -98,7 +98,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeSection, setActiveSectio
             {item.icon}
           </button>
         ))}
-        <button onClick={handleLogout} className="p-3 rounded-full text-redtheme" aria-label="Log Out">
+        <button onClick={handleLogout} className="p-3 cursor-pointer rounded-full text-redtheme" aria-label="Log Out">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="24"
@@ -118,7 +118,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeSection, setActiveSectio
       </nav>
 
       {/* Desktop Sidebar (Left) */}
-      <aside className="hidden h-fit rounded-xl md:flex flex-col w-64 bg-whitetheme dark:bg-darkthemeitems shadow-md p-6 transition-colors duration-200">
+      <aside className="hidden h-fit rounded-xl  md:flex flex-col w-64 bg-whitetheme dark:bg-darkthemeitems shadow-md p-6 transition-colors duration-200">
         <div className="mb-8">
           <h2 className="text-xl font-bold text-bgdarktheme dark:text-white">{t("profile.title")}</h2>
         </div>
@@ -129,7 +129,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeSection, setActiveSectio
               <li key={item.id}>
                 <button
                   onClick={() => setActiveSection(item.id as ActiveSection)}
-                  className={`flex items-center w-full p-3 rounded-lg transition-colors duration-200 ${
+                  className={`flex items-center cursor-pointer w-full p-3 rounded-lg transition-colors duration-200 ${
                     activeSection === item.id
                       ? "bg-softgreentheme text-greentheme dark:bg-greentheme dark:text-whitetheme"
                       : "text-blacktheme dark:text-textdarktheme hover:bg-softgreentheme hover:text-greentheme dark:hover:bg-greentheme dark:hover:text-whitetheme"
@@ -145,7 +145,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeSection, setActiveSectio
 
         <button
           onClick={handleLogout}
-          className="flex mt-10 items-center w-full p-3 rounded-lg text-redtheme hover:bg-softredtheme transition-colors duration-200"
+          className="flex mt-10 items-center cursor-pointer w-full p-3 rounded-lg text-redtheme hover:bg-softredtheme transition-colors duration-200"
         >
           <span className="mr-3">
             <svg

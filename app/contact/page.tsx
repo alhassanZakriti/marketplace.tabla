@@ -1,6 +1,7 @@
 "use client"
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 
 type FormData = {
   name: string;
@@ -19,6 +20,8 @@ const subjects = [
 ];
 
 export default function ContactPage() {
+
+    const { t } = useTranslation();
 
     useEffect(() => {
         document.title = "Contact Us - Tabla | Taste Morocco's Best"
@@ -73,9 +76,9 @@ export default function ContactPage() {
   return (
     <div className="container mx-auto p-4">
         <div className="w-full max-w-3xl  mx-auto p-6 bg-white dark:bg-bgdarktheme2 rounded-lg shadow-md">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-textdarktheme mb-2">Contact Us</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-textdarktheme mb-2">{t("contact.title")}</h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-                Have questions or feedback? We'd love to hear from you. Fill out the form below and we'll get back to you as soon as possible.
+                {t("contact.description")}
             </p>
 
             {isSubmitted ? (
@@ -126,7 +129,7 @@ export default function ContactPage() {
                     {/* Name Field */}
                     <div>
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-textdarktheme mb-1">
-                        Name <span className="text-redtheme">*</span>
+                        {t("contact.form.name")} <span className="text-redtheme">*</span>
                     </label>
                     <input
                         id="name"
@@ -134,7 +137,7 @@ export default function ContactPage() {
                         className={`w-full p-3 border ${
                         errors.name ? "border-redtheme" : "border-gray-300 dark:border-darkthemeitems"
                         } rounded-lg focus:ring-2 focus:ring-greentheme focus:outline-none dark:bg-darkthemeitems dark:text-textdarktheme`}
-                        placeholder="Your full name"
+                        placeholder={t("contact.placeholders.name", "Enter your name")}
                         {...register("name", { required: "Name is required" })}
                         aria-invalid={errors.name ? "true" : "false"}
                     />
@@ -146,7 +149,7 @@ export default function ContactPage() {
                     {/* Email Field */}
                     <div>
                     <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-textdarktheme mb-1">
-                        Email <span className="text-redtheme">*</span>
+                        {t("contact.form.email")} <span className="text-redtheme">*</span>
                     </label>
                     <input
                         id="email"
@@ -154,7 +157,7 @@ export default function ContactPage() {
                         className={`w-full p-3 border ${
                         errors.email ? "border-redtheme" : "border-gray-300 dark:border-darkthemeitems"
                         } rounded-lg focus:ring-2 focus:ring-greentheme focus:outline-none dark:bg-darkthemeitems dark:text-textdarktheme`}
-                        placeholder="your.email@example.com"
+                        placeholder={t("contact.placeholders.email", "Enter your email")}
                         {...register("email", {
                         required: "Email is required",
                         pattern: {
@@ -172,13 +175,13 @@ export default function ContactPage() {
                     {/* Phone Field (Optional) */}
                     <div>
                     <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-textdarktheme mb-1">
-                        Phone Number <span className="text-gray-500 dark:text-gray-400 text-xs">(Optional)</span>
+                        {t("contact.form.phone")} <span className="text-gray-500 dark:text-gray-400 text-xs">(Optional)</span>
                     </label>
                     <input
                         id="phone"
                         type="tel"
                         className="w-full p-3 border border-gray-300 dark:border-darkthemeitems rounded-lg focus:ring-2 focus:ring-greentheme focus:outline-none dark:bg-darkthemeitems dark:text-textdarktheme"
-                        placeholder="+1 (123) 456-7890"
+                        placeholder={t("contact.placeholders.phone", "+1 (123) 456-7890")}
                         {...register("phone")}
                     />
                     </div>
@@ -186,7 +189,7 @@ export default function ContactPage() {
                     {/* Subject Field */}
                     <div>
                     <label htmlFor="subject" className="block text-sm font-medium text-gray-700 dark:text-textdarktheme mb-1">
-                        Subject <span className="text-redtheme">*</span>
+                        {t("contact.form.subject")} <span className="text-redtheme">*</span>
                     </label>
                     <select
                         id="subject"
@@ -196,7 +199,7 @@ export default function ContactPage() {
                         {...register("subject", { required: "Please select a subject" })}
                         aria-invalid={errors.subject ? "true" : "false"}
                     >
-                        <option value="">Select a subject</option>
+                        <option value="">{t("contact.placeholders.subject", "Select a subject")}</option>
                         {subjects.map((subject) => (
                         <option key={subject} value={subject}>
                             {subject}
@@ -212,7 +215,7 @@ export default function ContactPage() {
                 {/* Message Field */}
                 <div>
                     <label htmlFor="message" className="block text-sm font-medium text-gray-700 dark:text-textdarktheme mb-1">
-                    Message <span className="text-redtheme">*</span>
+                    {t("contact.form.message")} <span className="text-redtheme">*</span>
                     </label>
                     <textarea
                     id="message"
@@ -220,7 +223,7 @@ export default function ContactPage() {
                     className={`w-full p-3 border ${
                         errors.message ? "border-redtheme" : "border-gray-300 dark:border-darkthemeitems"
                     } rounded-lg focus:ring-2 focus:ring-greentheme focus:outline-none dark:bg-darkthemeitems dark:text-textdarktheme`}
-                    placeholder="How can we help you?"
+                    placeholder={t("contact.placeholders.message", "How can we help you?")}
                     {...register("message", {
                         required: "Message is required",
                         minLength: {
@@ -263,10 +266,10 @@ export default function ContactPage() {
                             d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                             ></path>
                         </svg>
-                        Sending...
+                        {t("contact.form.sending", "Sending...")}
                         </>
                     ) : (
-                        "Send Message"
+                        t("contact.form.submit", "Send Message")
                     )}
                     </button>
                 </div>
@@ -292,7 +295,7 @@ export default function ContactPage() {
                     </svg>
                     </div>
                     <div className="ml-4">
-                    <h4 className="text-sm font-medium text-gray-900 dark:text-textdarktheme">Phone</h4>
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-textdarktheme">{t("contact.phone")}</h4>
                     <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">+1 (555) 123-4567</p>
                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">Mon-Fri from 8am to 6pm</p>
                     </div>
@@ -315,7 +318,7 @@ export default function ContactPage() {
                     </svg>
                     </div>
                     <div className="ml-4">
-                    <h4 className="text-sm font-medium text-gray-900 dark:text-textdarktheme">Email</h4>
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-textdarktheme">{t("contact.email")}</h4>
                     <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">support@restaurant.com</p>
                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">We'll respond as soon as possible</p>
                     </div>
@@ -338,7 +341,7 @@ export default function ContactPage() {
                     </svg>
                     </div>
                     <div className="ml-4">
-                    <h4 className="text-sm font-medium text-gray-900 dark:text-textdarktheme">Address</h4>
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-textdarktheme">{t("contact.address")}</h4>
                     <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">123 Restaurant Street</p>
                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">New York, NY 10001</p>
                     </div>
@@ -361,7 +364,7 @@ export default function ContactPage() {
                     </svg>
                     </div>
                     <div className="ml-4">
-                    <h4 className="text-sm font-medium text-gray-900 dark:text-textdarktheme">Hours</h4>
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-textdarktheme">{t("contact.hours")}</h4>
                     <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Mon-Sat: 11am - 10pm</p>
                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">Sunday: 12pm - 9pm</p>
                     </div>

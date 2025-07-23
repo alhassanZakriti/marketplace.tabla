@@ -4,6 +4,7 @@ import type React from "react"
 import { useState } from "react"
 import { format } from "date-fns"
 import OurCalendar from "../calendar/OurCalendar"
+import BookingForm from "./BookingForm"
 
 type SelectedData = {
   reserveDate: string
@@ -31,6 +32,7 @@ type ReservationProcessProps = {
   minGuests?: number
   offers?: Offer[]
   dateTime?: SelectedData
+  restaurantId?: number
 }
 
 const ReservationProcess: React.FC<ReservationProcessProps> = (props) => {
@@ -48,6 +50,7 @@ const ReservationProcess: React.FC<ReservationProcessProps> = (props) => {
       offer: null,
     },
   )
+  const [showBookingForm, setShowBookingForm] = useState(false)
 
   const handleDateClick = (day: Date) => {
     setSelectedDate(day)
@@ -91,7 +94,11 @@ const ReservationProcess: React.FC<ReservationProcessProps> = (props) => {
 
   const handleConfirmClick = () => {
     props.getDateTime(selectedData)
-    props.onClick()
+    if (props.restaurantId) {
+      setShowBookingForm(true)
+    } else {
+      props.onClick() // Fallback to original behavior for search page
+    }
   }
 
   // Helper function to check if an offer is valid for the selected date and time
@@ -123,6 +130,17 @@ const ReservationProcess: React.FC<ReservationProcessProps> = (props) => {
   const timeToMinutes = (timeStr: string): number => {
     const [hours, minutes] = timeStr.split(":").map(Number)
     return hours * 60 + minutes
+  }
+
+  // Booking form handlers
+  const handleBookingSuccess = (bookingData: any) => {
+    console.log("Booking created successfully:", bookingData)
+    setShowBookingForm(false)
+    props.onClick() // Call the original onClick to close the reservation process
+  }
+
+  const handleBookingFormClose = () => {
+    setShowBookingForm(false)
   }
 
   // Helper function to format percentage
@@ -415,6 +433,17 @@ const ReservationProcess: React.FC<ReservationProcessProps> = (props) => {
           </div>
         )}
       </div>
+
+      {/* Booking Form */}
+      {props.restaurantId && (
+        <BookingForm
+          isOpen={showBookingForm}
+          onClose={handleBookingFormClose}
+          onSuccess={handleBookingSuccess}
+          restaurantId={props.restaurantId}
+          bookingData={selectedData}
+        />
+      )}
     </div>
   )
 }

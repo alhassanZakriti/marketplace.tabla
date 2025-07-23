@@ -37,6 +37,7 @@ const defaultMapOptions: google.maps.MapOptions = {
   disableDefaultUI: true,
   zoomControl: true,
   mapTypeControl: false,
+  
   streetViewControl: false,
   fullscreenControl: false,
   gestureHandling: "cooperative",
@@ -88,7 +89,7 @@ const getSafeCoordinates = (restaurant: Restaurant): { lat: number; lng: number 
   }
 
   if (restaurant.location && Array.isArray(restaurant.location) && restaurant.location.length === 2) {
-    const [lat, lng] = restaurant.location
+    const [lng ,lat ] = restaurant.location
     if (typeof lat === "number" && typeof lng === "number" && !isNaN(lat) && !isNaN(lng)) {
       return { lat, lng }
     }
@@ -140,7 +141,7 @@ const RestaurantInfoWindow = ({
   const handleDirections = () => {
     const coords = getSafeCoordinates(restaurant)
     if (coords) {
-      const url = `https://www.google.com/maps/dir/?api=1&destination=${coords.lat},${coords.lng}`
+      const url = `https://www.google.co.ma/maps/dir/?api=1&destination=${coords.lat},${coords.lng}`
       window.open(url, "_blank")
     }
   }

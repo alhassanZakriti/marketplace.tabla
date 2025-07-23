@@ -10,6 +10,8 @@ interface AuthContextType {
   logout: () => Promise<void>
   isAuthenticated: boolean
   refreshUser: () => Promise<void>
+  ensureValidToken: () => Promise<boolean>
+  shouldRefreshToken: () => boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -107,6 +109,32 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }
 
+  const ensureValidToken = async (): Promise<boolean> => {
+    try {
+      return await dataProvider.auth.ensureValidToken()
+    } catch (error) {
+      console.error('Token validation failed:', error)
+      await logout()
+      return false
+    }
+  }
+
+  const shouldRefreshToken = (): boolean => {
+    return dataProvider.auth.shouldRefreshToken()
+  }
+
+  // Set up automatic token refresh
+  useEffect(() => {
+    if (!user) return
+
+    // Check token every 4 minutes and refresh if needed
+    const interval = setInterval(async () => {
+      await ensureValidToken()
+    }, 4 * 60 * 1000) // 4 minutes
+
+    return () => clearInterval(interval)
+  }, [user])
+
   const value: AuthContextType = {
     user,
     loading,
@@ -114,6 +142,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     logout,
     isAuthenticated: !!user && dataProvider.auth.isAuthenticated(),
     refreshUser,
+    ensureValidToken,
+    shouldRefreshToken,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -7,6 +7,7 @@ import Header from "../components/layout/Header" // Import Header component
 import Footer from "../components/layout/Footer" // Import Footer component
 import { ThemeProvider } from "@/theme/ThemeProvider"
 import { AuthProvider } from "@/components/auth/AuthProvider"
+import QueryProvider from "@/providers/QueryProvider"
 
 const inter = Red_Hat_Display({
   subsets: ["latin"],
@@ -39,13 +40,15 @@ export default function RootLayout({
       <body className={`${inter.className} bg-whitetheme dark:bg-bgdarktheme text-blacktheme dark:text-textdarktheme`}>
         <I18nProvider>
           <ThemeProvider>
-            <AuthProvider>
+            <QueryProvider>
+              <AuthProvider>
 
-              <Header />
-              <div className="bg-white dark:bg-bgdarktheme">{children}</div>
-              <Footer />
+                <Header />
+                <div className="bg-white dark:bg-bgdarktheme">{children}</div>
+                <Footer />
 
-            </AuthProvider>
+              </AuthProvider>
+            </QueryProvider>
           </ThemeProvider>
         </I18nProvider>
       </body>

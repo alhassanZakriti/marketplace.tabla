@@ -3,6 +3,7 @@ import {  useState } from "react"
 import { Metadata } from "next";
 import { ChevronDown } from 'lucide-react'
 import Link from "next/link"
+import { t } from "i18next";
 
 
 
@@ -67,7 +68,7 @@ export default function FAQPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-12 bg-whitetheme dark:bg-bgdarktheme min-h-screen">
-      <h1 className="text-3xl font-bold text-blacktheme dark:text-textdarktheme mb-8">Frequently Asked Questions</h1>
+      <h1 className="text-3xl font-bold text-blacktheme dark:text-textdarktheme mb-8">{t("faq.title")}</h1>
       
       <div className="space-y-4">
         {faqItems.map((item, index) => (
@@ -100,12 +101,12 @@ export default function FAQPage() {
       </div>
       
       <div className="mt-12 p-6 bg-softgreentheme dark:bg-greentheme/10 rounded-lg">
-        <h2 className="text-xl font-semibold text-greentheme mb-4">Still have questions?</h2>
+        <h2 className="text-xl font-semibold text-greentheme mb-4">{t("faq.stillHaveQuestions")}</h2>
         <p className="text-gray-700 dark:text-gray-300 mb-4">
-          Our support team is here to help. Contact us and we'll get back to you as soon as possible.
+          {t("faq.contactUs")}
         </p>
         <Link href="/contact" className="px-6 py-2 bg-greentheme text-white rounded-lg hover:bg-opacity-90 transition-colors">
-          Contact Support
+          {t("faq.contactSupport")}
         </Link>
       </div>
     </div>

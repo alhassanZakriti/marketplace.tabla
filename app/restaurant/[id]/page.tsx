@@ -3,13 +3,13 @@
 import { useEffect, useState } from "react"
 import type React from "react"
 import { useTranslation } from "react-i18next"
-import { Star, ChevronRight, ChevronLeft, ChevronDown, PlusSquare, Clock, MapPin, Phone, Globe } from "lucide-react"
+import { Star, ChevronRight, ChevronLeft, ChevronDown, PlusSquare, Clock, MapPin, Phone, Globe, Heart } from "lucide-react"
 import ReservationProcess from "../../../components/restaurant/ReservationProcess"
 import PhotoPopup from "../../../components/restaurant/PhotoPopup"
 import ReviewForm, { type ReviewData } from "../../../components/restaurant/ReviewForm"
 import { useParams } from "next/navigation"
+import { useAuth } from "../../../components/auth/AuthProvider"
 import {
-  dataProvider,
   type Restaurant,
   type OfferType,
   type OpeningHour,
@@ -19,6 +19,15 @@ import {
   type GalleryItem,
 } from "../../../lib/dataProvider"
 import { MapComponent } from "@/components/search/MapSection"
+import {
+  useRestaurant,
+  useRestaurantMenu,
+  useRestaurantReviews,
+  useRestaurantGallery,
+  useRestaurantAvailability,
+  useLikeRestaurant,
+  useUnlikeRestaurant,
+} from "@/hooks/api"
 
 type SelectedData = {
   reserveDate: string
@@ -35,109 +44,74 @@ export default function RestaurantPage() {
   const { t } = useTranslation()
   const params = useParams()
   const id = params.id as string
+  const { isAuthenticated, ensureValidToken } = useAuth()
 
-  const [restaurantInfo, setRestaurantInfo] = useState<Restaurant | null>(null)
-  const [restaurantLoading, setRestaurantLoading] = useState(true)
-  const [restaurantError, setRestaurantError] = useState<string | null>(null)
+  // React Query hooks for data fetching
+  const {
+    data: restaurantInfo,
+    isLoading: restaurantLoading,
+    error: restaurantError,
+  } = useRestaurant(id)
 
-  const [openingHours, setOpeningHours] = useState<OpeningHour[]>([])
-  const [openingHoursLoading, setOpeningHoursLoading] = useState(true)
-  const [openingHoursError, setOpeningHoursError] = useState<string | null>(null)
+  const {
+    data: openingHours = [],
+    isLoading: openingHoursLoading,
+    error: openingHoursError,
+  } = useRestaurantAvailability(id)
 
-  const [menu, setMenu] = useState<MenuCategory[]>([])
-  const [menuLoading, setMenuLoading] = useState(true)
-  const [menuError, setMenuError] = useState<string | null>(null)
+  const {
+    data: menu = [],
+    isLoading: menuLoading,
+    error: menuError,
+  } = useRestaurantMenu(id)
 
-  const [reviews, setReviews] = useState<Review[]>([])
-  const [reviewsLoading, setReviewsLoading] = useState(true)
-  const [reviewsError, setReviewsError] = useState<string | null>(null)
+  const {
+    data: reviews = [],
+    isLoading: reviewsLoading,
+    error: reviewsError,
+  } = useRestaurantReviews(id)
 
+  const {
+    data: gallery = [],
+    isLoading: galleryLoading,
+    error: galleryError,
+  } = useRestaurantGallery(id)
+
+  // Like/Unlike mutations
+  const likeMutation = useLikeRestaurant()
+  const unlikeMutation = useUnlikeRestaurant()
+
+  // State for UI components
   const [extraServices, setExtraServices] = useState<ExtraService[]>([])
   const [extraServicesLoading, setExtraServicesLoading] = useState(true)
   const [extraServicesError, setExtraServicesError] = useState<string | null>(null)
 
-  const [gallery, setGallery] = useState<GalleryItem[]>([])
-  const [galleryLoading, setGalleryLoading] = useState(true)
-  const [galleryError, setGalleryError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!id) return
-
-    const fetchData = async () => {
-      setRestaurantLoading(true)
-      try {
-        const data = await dataProvider.restaurants.getRestaurant(id)
-        setRestaurantInfo(data)
-        setRestaurantError(null)
-      } catch (err: any) {
-        setRestaurantError(err.message || t("restaurant.errorFetchInfo"))
-      } finally {
-        setRestaurantLoading(false)
-      }
-
-      setOpeningHoursLoading(true)
-      try {
-        const data = await dataProvider.restaurants.getRestaurantAvailability(id)
-        setOpeningHours(data)
-        setOpeningHoursError(null)
-      } catch (err: any) {
-        setOpeningHoursError(err.message || t("restaurant.errorFetchHours"))
-      } finally {
-        setOpeningHoursLoading(false)
-      }
-
-      setMenuLoading(true)
-      try {
-        const data = await dataProvider.restaurants.getRestaurantMenu(id)
-        setMenu(data)
-        setMenuError(null)
-      } catch (err: any) {
-        setMenuError(err.message || t("restaurant.errorFetchMenu"))
-      } finally {
-        setMenuLoading(false)
-      }
-
-      setReviewsLoading(true)
-      try {
-        const data = await dataProvider.restaurants.getRestaurantReviews(id)
-        setReviews(data)
-        setReviewsError(null)
-      } catch (err: any) {
-        setReviewsError(err.message || t("restaurant.errorFetchReviews"))
-      } finally {
-        setReviewsLoading(false)
-      }
-
-      setExtraServicesLoading(true)
-      try {
-        const data = await dataProvider.restaurants.getRestaurantServices(id)
-        setExtraServices(data)
-        setExtraServicesError(null)
-      } catch (err: any) {
-        setExtraServicesError(err.message || t("restaurant.errorFetchServices"))
-      } finally {
-        setExtraServicesLoading(false)
-      }
-
-      setGalleryLoading(true)
-      try {
-        const data = await dataProvider.restaurants.getRestaurantGallery(id)
-        setGallery(data)
-        setGalleryError(null)
-      } catch (err: any) {
-        setGalleryError(err.message || t("restaurant.errorFetchGallery"))
-      } finally {
-        setGalleryLoading(false)
-      }
-    }
-
-    fetchData()
-  }, [id, t])
-
+  // Set document title when restaurant data is loaded
   useEffect(() => {
     const restaurantName = restaurantInfo?.name || t("restaurant.defaultName")
     document.title = `${restaurantName} - Tabla | ${t("restaurant.tasteMoroccoBest")}`
   }, [restaurantInfo, t])
+
+  // Set like status and services from restaurant data
+  const [isLiked, setIsLiked] = useState(false)
+  const [isLikeLoading, setIsLikeLoading] = useState(false)
+
+  useEffect(() => {
+    if (restaurantInfo) {
+      if (restaurantInfo.is_liked !== undefined) {
+        setIsLiked(restaurantInfo.is_liked)
+      } else {
+        setIsLiked(false)
+      }
+      
+      // Set services directly from restaurant data
+      if (restaurantInfo.services) {
+        setExtraServices(restaurantInfo.services)
+        setExtraServicesLoading(false)
+        setExtraServicesError(null)
+      }
+    }
+  }, [restaurantInfo])
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [showAllMenu, setShowAllMenu] = useState(false)
@@ -149,7 +123,7 @@ export default function RestaurantPage() {
     restaurantInfo?.gallery && restaurantInfo.gallery.length > 0
       ? restaurantInfo.gallery.map((img) => img.file)
       : [
-          "https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png",
+          restaurantInfo?.image || "https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png",
           "https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png",
           "https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png",
         ]
@@ -204,10 +178,46 @@ export default function RestaurantPage() {
   const [selectedPhoto, setSelectedPhoto] = useState("")
   const [showWriteReview, setShowWriteReview] = useState(false)
 
+  // Like/Favorite functionality
   const handleSubmitReview = (reviewData: ReviewData) => {
     console.log("Review submitted:", reviewData)
     alert(t("restaurant.thankYouReview"))
     setShowWriteReview(false)
+  }
+
+  // Handle like/unlike restaurant
+  const handleLikeToggle = async () => {
+    const isCurrentlyLikeLoading = likeMutation.isPending || unlikeMutation.isPending
+    if (isCurrentlyLikeLoading) return
+
+    // Check if user is authenticated
+    if (!isAuthenticated) {
+      alert(t("restaurant.loginRequired"))
+      return
+    }
+    
+    try {
+      // Ensure we have a valid token before making the API call
+      const hasValidToken = await ensureValidToken()
+      if (!hasValidToken) {
+        alert(t("restaurant.loginRequired"))
+        return
+      }
+
+      const newLikedState = !isLiked
+      
+      if (newLikedState) {
+        await likeMutation.mutateAsync(id)
+      } else {
+        await unlikeMutation.mutateAsync(id)
+      }
+      
+      // The isLiked state is now updated automatically by the React Query cache
+    } catch (error) {
+      // Show user-friendly error message
+      const errorMessage = error instanceof Error ? error.message : t("restaurant.errorToggleLike")
+      alert(errorMessage)
+    }
   }
 
   const hasMenuItems = (menuCategories: MenuCategory[]): boolean => {
@@ -315,6 +325,7 @@ export default function RestaurantPage() {
           noOffer={offers.length === 0}
           dateTime={bookingData}
           onClick={() => setShowReservationProcess(false)}
+          restaurantId={parseInt(id)}
         />
       )}
       {showWriteReview && (
@@ -413,14 +424,44 @@ export default function RestaurantPage() {
         <div className="mb-12">
           <div className="flex justify-between lt-sm:flex-col lt-sm:items-center lt-sm:gap-5 items-start mb-4">
             <div>
-              <h1 className="text-3xl font-bold text-blacktheme dark:text-textdarktheme mb-2 transition-colors">
-                {restaurantInfo?.name || t("restaurant.defaultName")}
-              </h1>
+              <div className="flex items-center justify-start gap-4 mb-2">
+
+                <h1 className="text-3xl font-bold text-blacktheme dark:text-textdarktheme mb-2 transition-colors">
+                  {restaurantInfo?.name || t("restaurant.defaultName")}
+                  {/* Like Button */}
+                </h1>
+                <button
+                  onClick={handleLikeToggle}
+                  disabled={likeMutation.isPending || unlikeMutation.isPending}
+                  className={`cursor-pointer flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                    isLiked
+                      ? "bg-redtheme/10 text-redtheme border border-redtheme/20 hover:bg-redtheme/20"
+                      : "bg-whitetheme dark:bg-darkthemeitems border border-softgreytheme dark:border-textdarktheme/20 text-subblack dark:text-textdarktheme hover:border-redtheme/50 hover:text-redtheme"
+                  } ${(likeMutation.isPending || unlikeMutation.isPending) ? "opacity-70 cursor-not-allowed" : ""}`}
+                  aria-label={isLiked ? t("restaurant.removeFavorite") : t("restaurant.addFavorite")}
+                >
+                  <Heart
+                    className={`h-4 w-4 transition-all duration-200 ${
+                      isLiked ? "fill-redtheme text-redtheme scale-110" : "text-current"
+                    } ${(likeMutation.isPending || unlikeMutation.isPending) ? "animate-pulse" : ""}`}
+                  />
+                  <span className="text-sm">
+                    {(likeMutation.isPending || unlikeMutation.isPending)
+                      ? t("restaurant.updating") 
+                      : isLiked 
+                      ? t("restaurant.liked") 
+                      : t("restaurant.like")
+                    }
+                  </span>
+                </button>
+              </div>
+              
               <div className="flex items-center gap-4 text-sm text-subblack dark:text-textdarktheme/80 mb-2 transition-colors">
                 <span className="flex items-center gap-1">
                   <span className="inline-block w-2 h-2 bg-greentheme rounded-full"></span>
                   {restaurantInfo?.category_name || t("restaurant.category")}
                 </span>
+                
                 <span className={`flex items-center gap-1 ${currentStatus.color}`}>
                   <span
                     className={`inline-block w-2 h-2 rounded-full ${
@@ -460,6 +501,8 @@ export default function RestaurantPage() {
                   {t("restaurant.basedOnReviews", { count: Array.isArray(reviews) ? reviews.length : 0 })}
                 </div>
               </div>
+              
+              
               <div className="mt-4 grid grid-cols-3 gap-2 text-center">
                 <div className="bg-whitetheme dark:bg-darkthemeitems shadow-sm rounded p-2 transition-colors">
                   <div className="text-yellowtheme font-bold">
@@ -623,7 +666,13 @@ export default function RestaurantPage() {
             <div className="bg-whitetheme dark:bg-darkthemeitems shadow-sm rounded-lg overflow-hidden transition-colors">
               <div className="max-h-[250px] overflow-hidden bg-softgreytheme dark:bg-bgdarktheme2 relative transition-colors">
                 <MapComponent 
-                    restaurants={restaurantInfo ? [restaurantInfo] : []}
+                    restaurants={restaurantInfo ? [{
+                      ...restaurantInfo,
+                      main_image: restaurantInfo.image,
+                      location: restaurantInfo.location?.length === 2 ? [restaurantInfo.location[0], restaurantInfo.location[1]] as [number, number] : null,
+                      distance: null,
+                      status: currentStatus.color === "text-greentheme" ? "Open" : "Closed" as "Closed" | "Open"
+                    }] : []}
                     selectedRestaurantId={String(restaurantInfo?.id) ?? null}
                 />
               </div>
@@ -645,7 +694,7 @@ export default function RestaurantPage() {
                       }
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-greentheme dark:text-white hover:underline block flex items-center gap-2"
+                      className="text-greentheme dark:text-white hover:underline flex items-center gap-2"
                     >
                       <Globe className="h-3 w-3" />
                       {restaurantInfo.website}
@@ -654,7 +703,7 @@ export default function RestaurantPage() {
                   {restaurantInfo?.phone && (
                     <a
                       href={`tel:${restaurantInfo.phone}`}
-                      className="text-greentheme dark:text-white hover:underline block flex items-center gap-2"
+                      className="text-greentheme dark:text-white hover:underline flex items-center gap-2"
                     >
                       <Phone className="h-3 w-3" />
                       {restaurantInfo.phone}

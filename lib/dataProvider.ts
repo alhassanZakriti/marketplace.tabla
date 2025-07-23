@@ -15,17 +15,57 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
 
   // Add auth token if available
   if (typeof window !== "undefined") {
-    const token = localStorage.getItem("auth_token")
-    if (token) {
+    const accessToken = localStorage.getItem("access_token")
+    if (accessToken) {
       defaultOptions.headers = {
         ...defaultOptions.headers,
-        Authorization: `Token ${token}`, // Using Token format as per Django REST Framework
+        Authorization: `Bearer ${accessToken}`,
       }
     }
   }
 
   try {
     const response = await fetch(url, defaultOptions)
+
+    // If token expired, try to refresh
+    if (response.status === 401 && typeof window !== "undefined") {
+      const refreshToken = localStorage.getItem("refresh_token")
+      if (refreshToken && !isTokenExpired()) {
+        try {
+          console.log("Attempting to refresh access token...")
+          const refreshResponse = await refreshAccessToken()
+          
+          if (refreshResponse.access_token) {
+            console.log("Token refreshed successfully, retrying original request...")
+            // Retry the original request with new token
+            defaultOptions.headers = {
+              ...defaultOptions.headers,
+              Authorization: `Bearer ${refreshResponse.access_token}`,
+            }
+            const retryResponse = await fetch(url, defaultOptions)
+            
+            if (!retryResponse.ok) {
+              const errorData = await retryResponse.json().catch(() => ({}))
+              throw new Error(errorData.detail || errorData.message || `HTTP error! status: ${retryResponse.status}`)
+            }
+            
+            return await retryResponse.json()
+          } else {
+            throw new Error("Refresh token response missing access token")
+          }
+        } catch (refreshError) {
+          console.error("Token refresh failed:", refreshError)
+          // Clear invalid tokens
+          clearAuthTokens()
+          throw new Error("Authentication failed. Please login again.")
+        }
+      } else {
+        // No refresh token available or token is expired
+        console.log("No valid refresh token available")
+        clearAuthTokens()
+        throw new Error("Authentication required. Please login.")
+      }
+    }
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
@@ -39,30 +79,169 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   }
 }
 
+// Helper functions for token management
+function clearAuthTokens(): void {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("access_token")
+    localStorage.removeItem("refresh_token")
+    localStorage.removeItem("token_expires_at")
+    localStorage.removeItem("user")
+  }
+}
+
+function setAuthTokens(authResponse: any): void {
+  if (typeof window !== "undefined") {
+    console.log("Setting auth tokens from response:", authResponse)
+    
+    // Handle different response formats - check for both access_token and access
+    const accessToken = authResponse.access_token || authResponse.access
+    const refreshToken = authResponse.refresh_token || authResponse.refresh
+    
+    if (accessToken) {
+      localStorage.setItem("access_token", accessToken)
+      console.log("Access token saved:", accessToken.substring(0, 10) + "...")
+    } else {
+      console.error("No access token found in response:", authResponse)
+    }
+    
+    if (refreshToken) {
+      localStorage.setItem("refresh_token", refreshToken)
+      console.log("Refresh token saved:", refreshToken.substring(0, 10) + "...")
+    } else {
+      console.error("No refresh token found in response:", authResponse)
+    }
+    
+    // Calculate and store expiration time
+    const expiresIn = authResponse.expires_in || 3600 // Default to 1 hour
+    const expiresAt = Date.now() + (expiresIn * 1000)
+    localStorage.setItem("token_expires_at", expiresAt.toString())
+    
+    if (authResponse.user) {
+      localStorage.setItem("user", JSON.stringify(authResponse.user))
+      console.log("User data saved:", authResponse.user)
+    }
+  }
+}
+
+async function refreshAccessToken(): Promise<RefreshTokenResponse> {
+  const refreshToken = localStorage.getItem("refresh_token")
+  if (!refreshToken) {
+    throw new Error("No refresh token available")
+  }
+
+  console.log("Attempting to refresh access token...")
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/v1/auth/token/refresh/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        refresh: refreshToken,
+      }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      console.error("Refresh token error response:", {
+        status: response.status,
+        statusText: response.statusText,
+        errorData
+      })
+      throw new Error(`Failed to refresh token: ${response.status} ${errorData.detail || errorData.message || response.statusText}`)
+    }
+
+    const data = await response.json()
+    console.log("Refresh token API response:", data)
+    
+    // Validate the response has the expected access token
+    const accessToken = data.access_token || data.access
+    if (!accessToken) {
+      console.error("Invalid refresh token response - no access token:", data)
+      throw new Error("Invalid refresh token response: missing access token")
+    }
+    
+    // Handle both possible response formats
+    const expiresIn = data.expires_in || 3600 // Default to 1 hour if not provided
+    
+    // Update stored access token
+    if (typeof window !== "undefined") {
+      localStorage.setItem("access_token", accessToken)
+      const expiresAt = Date.now() + (expiresIn * 1000)
+      localStorage.setItem("token_expires_at", expiresAt.toString())
+      console.log("Access token refreshed and stored")
+    }
+    
+    return {
+      access_token: accessToken,
+      expires_in: expiresIn,
+      token_type: data.token_type || "Bearer"
+    }
+  } catch (error) {
+    console.error("Refresh token failed:", error)
+    throw error
+  }
+}
+
+async function verifyToken(): Promise<boolean> {
+  const accessToken = localStorage.getItem("access_token")
+  if (!accessToken) {
+    return false
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/v1/auth/token/verify/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        token: accessToken,
+      }),
+    })
+
+    return response.ok
+  } catch (error) {
+    console.error("Token verification failed:", error)
+    return false
+  }
+}
+
+function isTokenExpired(): boolean {
+  if (typeof window === "undefined") return true
+  
+  const expiresAt = localStorage.getItem("token_expires_at")
+  if (!expiresAt) return true
+  
+  return Date.now() >= parseInt(expiresAt)
+}
+
 // Restaurant-specific interfaces
 export interface Restaurant {
-  id: string | number
+  id: number
   name: string
+  phone: string
   address: string
-  distance: number | null
-  rating: number | null
-  status: "Closed" | "Open"
-  main_image: string | null
-  location: [number, number] | null
-  cuisine?: string
-  phone?: string
-  description?: string
-  hours?: string
-  city_name?: string
-  website?: string
-  average_price?: number
-  category_name?: string
-  gallery?: { file: string }[]
-  offers?: OfferType[]
-  services?: ExtraService[]
-  food_rating?: number
-  service_rating?: number
-  ambience_rating?: number
+  city_name: string
+  image: string
+  description: string
+  website: string
+  average_price: string | number
+  category_name: string
+  gallery: { file: string }[]
+  offers: OfferType[]
+  services: ExtraService[]
+  rating: number
+  food_rating: number
+  service_rating: number
+  ambience_rating: number
+  location: number[]
+  is_liked: boolean
+  // Additional properties for compatibility
+  distance?: number | null
+  status?: "Closed" | "Open"
+  main_image?: string | null
 }
 
 export interface RestaurantAPIResponse {
@@ -71,6 +250,7 @@ export interface RestaurantAPIResponse {
   previous: string | null
   results: Restaurant[]
 }
+
 
 export interface SearchParams {
   city?: string
@@ -142,9 +322,88 @@ export interface Review {
   customer: number
 }
 
+export interface RestaurantFavorite {
+    id: number;
+    name: string;
+    address: string;
+    distance: number | null;
+    rating: number | null;
+    status: string;
+    main_image: string | null;
+    location: [number, number]; // Array containing latitude and longitude
+    is_liked: boolean;
+}  
+
 export interface GalleryItem {
   file: string
   uploaded_at: string
+}
+
+export interface Reservation {
+  id: number
+  seq_id: number
+  restaurant_name: string
+  customer_name: string
+  customer_email: string
+  customer_phone: string
+  party_size: number
+  reservation_date: string
+  reservation_time: string
+  special_request: string
+  status: "pending" | "confirmed" | "fulfilled" | "cancelled"
+  created_at: string
+  updated_at: string
+  restaurant: number
+  customer: number
+}
+
+export interface ReservationsAPIResponse {
+  count: number
+  next: string | null
+  previous: string | null
+  results: Reservation[]
+}
+
+export interface BookingRequest {
+  first_name: string
+  last_name: string
+  email: string
+  phone: string
+  title: "mr" | "mrs" | "ms"
+  number_of_guests: number
+  date: string // YYYY-MM-DD format
+  time: string // HH:MM:SS format or ISO string
+  restaurant: number
+  commenter?: string
+  internal_note?: string
+  allergies?: string
+  preferences?: string
+  occasion?: number
+  area?: number
+  offer?: number
+}
+
+export interface BookingResponse {
+  id: number
+  first_name: string
+  last_name: string
+  email: string
+  phone: string
+  title: string
+  number_of_guests: number
+  date: string
+  time: string
+  restaurant: number
+  commenter: string
+  internal_note: string
+  allergies: string
+  preferences: string
+  occasion: number | null
+  area: number | null
+  offer: number | null
+  status: string
+  created_at: string
+  updated_at: string
 }
 
 // Restaurant data provider
@@ -210,6 +469,275 @@ export const restaurantDataProvider = {
   getRestaurantGallery: async (id: string | number): Promise<GalleryItem[]> => {
     return apiRequest<GalleryItem[]>(`api/v1/mp/restaurants/${id}/user_photos/`)
   },
+
+  // Like/Unlike restaurant
+  likeRestaurant: async (id: string | number): Promise<{ message: string }> => {
+    const url = `${API_BASE_URL}/api/v1/mp/restaurants/${id}/like/`
+    
+    const options: RequestInit = {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+
+    // Add auth token if available
+    if (typeof window !== "undefined") {
+      const accessToken = localStorage.getItem("access_token")
+      if (accessToken) {
+        options.headers = {
+          ...options.headers,
+          Authorization: `Bearer ${accessToken}`,
+        }
+      }
+    }
+
+    try {
+      const response = await fetch(url, options)
+      
+      if (!response.ok) {
+        let errorMessage = `HTTP error! status: ${response.status}`
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.detail || errorData.message || errorMessage
+        } catch {
+          // If JSON parsing fails, use status text
+          errorMessage = response.statusText || errorMessage
+        }
+        throw new Error(errorMessage)
+      }
+
+      // Handle empty response (204 No Content)
+      if (response.status === 204 || response.headers.get('content-length') === '0') {
+        return { message: "Restaurant liked successfully" }
+      }
+
+      // Try to parse JSON response
+      try {
+        const result = await response.json()
+        return result || { message: "Restaurant liked successfully" }
+      } catch {
+        // If JSON parsing fails but response was ok, return success
+        return { message: "Restaurant liked successfully" }
+      }
+    } catch (error) {
+      console.error("Error liking restaurant:", error)
+      throw error
+    }
+  },
+
+  unlikeRestaurant: async (id: string | number): Promise<{ message: string }> => {
+    const url = `${API_BASE_URL}/api/v1/mp/restaurants/${id}/unlike/`
+    
+    const options: RequestInit = {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+
+    // Add auth token if available
+    if (typeof window !== "undefined") {
+      const accessToken = localStorage.getItem("access_token")
+      if (accessToken) {
+        options.headers = {
+          ...options.headers,
+          Authorization: `Bearer ${accessToken}`,
+        }
+      }
+    }
+
+    try {
+      const response = await fetch(url, options)
+      
+      if (!response.ok) {
+        let errorMessage = `HTTP error! status: ${response.status}`
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.detail || errorData.message || errorMessage
+        } catch {
+          // If JSON parsing fails, use status text
+          errorMessage = response.statusText || errorMessage
+        }
+        throw new Error(errorMessage)
+      }
+
+      // Handle empty response (204 No Content)
+      if (response.status === 204 || response.headers.get('content-length') === '0') {
+        return { message: "Restaurant unliked successfully" }
+      }
+
+      // Try to parse JSON response
+      try {
+        const result = await response.json()
+        return result || { message: "Restaurant unliked successfully" }
+      } catch {
+        // If JSON parsing fails but response was ok, return success
+        return { message: "Restaurant unliked successfully" }
+      }
+    } catch (error) {
+      console.error("Error unliking restaurant:", error)
+      throw error
+    }
+  },
+
+  // Get liked restaurants
+  getLikedRestaurants: async (): Promise<RestaurantFavorite[]> => {
+    console.log('🍽️ Fetching liked restaurants...')
+    try {
+      const result = await apiRequest<RestaurantFavorite[]>("api/v1/mp/liked-restaurants/")
+      console.log('🍽️ Liked restaurants response:', result)
+      return result || []
+    } catch (error) {
+      console.error('🍽️ Error fetching liked restaurants:', error)
+      throw error
+    }
+  },
+
+  // Remove restaurant from favorites
+  removeLikedRestaurant: async (id: string | number): Promise<{ message: string }> => {
+    const url = `${API_BASE_URL}/api/v1/mp/liked-restaurants/${id}/`
+    
+    const options: RequestInit = {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+
+    // Add auth token if available
+    if (typeof window !== "undefined") {
+      const accessToken = localStorage.getItem("access_token")
+      if (accessToken) {
+        options.headers = {
+          ...options.headers,
+          Authorization: `Bearer ${accessToken}`,
+        }
+      }
+    }
+
+    try {
+      const response = await fetch(url, options)
+      
+      if (!response.ok) {
+        let errorMessage = `HTTP error! status: ${response.status}`
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.detail || errorData.message || errorMessage
+        } catch {
+          // If JSON parsing fails, use status text
+          errorMessage = response.statusText || errorMessage
+        }
+        throw new Error(errorMessage)
+      }
+
+      // Handle empty response (204 No Content)
+      if (response.status === 204 || response.headers.get('content-length') === '0') {
+        return { message: "Restaurant removed from favorites successfully" }
+      }
+
+      // Try to parse JSON response
+      try {
+        const result = await response.json()
+        return result || { message: "Restaurant removed from favorites successfully" }
+      } catch {
+        // If JSON parsing fails but response was ok, return success
+        return { message: "Restaurant removed from favorites successfully" }
+      }
+    } catch (error) {
+      console.error("Error removing restaurant from favorites:", error)
+      throw error
+    }
+  },
+
+  // Get user reservations
+  getReservations: async (): Promise<ReservationsAPIResponse> => {
+    console.log('📅 Fetching user reservations...')
+    try {
+      const result = await apiRequest<ReservationsAPIResponse>("api/v1/mp/reservations/")
+      console.log('📅 Raw API result:', result)
+      console.log('📅 Result type:', typeof result)
+      console.log('📅 Result keys:', Object.keys(result || {}))
+      console.log('📅 Results array:', result?.results)
+      console.log('📅 Results length:', result?.results?.length)
+      return result
+    } catch (error) {
+      console.error('📅 Error fetching reservations:', error)
+      throw error
+    }
+  },
+
+  // Cancel a reservation
+  cancelReservation: async (id: string | number): Promise<{ message: string }> => {
+    const url = `${API_BASE_URL}/api/v1/mp/reservations/${id}/cancel/`
+    
+    const options: RequestInit = {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+
+    // Add auth token if available
+    if (typeof window !== "undefined") {
+      const accessToken = localStorage.getItem("access_token")
+      if (accessToken) {
+        options.headers = {
+          ...options.headers,
+          Authorization: `Bearer ${accessToken}`,
+        }
+      }
+    }
+
+    try {
+      const response = await fetch(url, options)
+      
+      if (!response.ok) {
+        let errorMessage = `HTTP error! status: ${response.status}`
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.detail || errorData.message || errorMessage
+        } catch {
+          // If JSON parsing fails, use status text
+          errorMessage = response.statusText || errorMessage
+        }
+        throw new Error(errorMessage)
+      }
+
+      // Handle empty response (204 No Content)
+      if (response.status === 204 || response.headers.get('content-length') === '0') {
+        return { message: "Reservation cancelled successfully" }
+      }
+
+      // Try to parse JSON response
+      try {
+        const result = await response.json()
+        return result || { message: "Reservation cancelled successfully" }
+      } catch {
+        // If JSON parsing fails but response was ok, return success
+        return { message: "Reservation cancelled successfully" }
+      }
+    } catch (error) {
+      console.error("Error cancelling reservation:", error)
+      throw error
+    }
+  },
+
+  // Create a new booking/reservation
+  createBooking: async (bookingData: BookingRequest): Promise<BookingResponse> => {
+    console.log('📝 Creating new booking...', bookingData)
+    try {
+      const result = await apiRequest<BookingResponse>("api/v1/mp/reservations/", {
+        method: "POST",
+        body: JSON.stringify(bookingData),
+      })
+      console.log('📝 Booking created successfully:', result)
+      return result
+    } catch (error) {
+      console.error('📝 Error creating booking:', error)
+      throw error
+    }
+  },
 }
 
 // Cities data provider
@@ -271,14 +799,25 @@ export interface RegisterData {
 }
 
 export interface AuthResponse {
-  key: string // Django REST Framework returns 'key' for token
+  access_token: string
+  refresh_token: string
+  expires_in: number
+  token_type: string
   user?: User
 }
 
+export interface RefreshTokenResponse {
+  access_token: string
+  expires_in: number
+  token_type: string
+}
+
 export const authDataProvider = {
-  // Login - Updated to match your API structure
+  // Login - Updated to handle access/refresh tokens
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-    const response = await apiRequest<AuthResponse>("api/v1/auth/login/", {
+    console.log("Attempting login for:", credentials.email)
+    
+    const response = await apiRequest<any>("api/v1/auth/login/", {
       method: "POST",
       body: JSON.stringify({
         username: credentials.username,
@@ -288,37 +827,71 @@ export const authDataProvider = {
       }),
     })
 
-    // Store auth data
-    if (typeof window !== "undefined") {
-      localStorage.setItem("auth_token", response.key)
-      if (response.user) {
-        localStorage.setItem("user", JSON.stringify(response.user))
-      }
+    console.log("Login API response:", response)
+
+    // Store auth data using helper function
+    setAuthTokens(response)
+
+    // Normalize the response to match AuthResponse interface
+    const normalizedResponse: AuthResponse = {
+      access_token: response.access_token || response.access,
+      refresh_token: response.refresh_token || response.refresh,
+      expires_in: response.expires_in || 3600,
+      token_type: response.token_type || "Bearer",
+      user: response.user
     }
 
-    return response
+    return normalizedResponse
   },
 
   // Register
   register: async (userData: RegisterData): Promise<AuthResponse> => {
-    return apiRequest<AuthResponse>("api/v1/auth/registration/", {
+    console.log("Attempting registration for:", userData.email)
+    
+    const response = await apiRequest<any>("api/v1/auth/registration/", {
       method: "POST",
       body: JSON.stringify(userData),
     })
+
+    console.log("Registration API response:", response)
+
+    // Store auth data after successful registration
+    setAuthTokens(response)
+
+    // Normalize the response to match AuthResponse interface
+    const normalizedResponse: AuthResponse = {
+      access_token: response.access_token || response.access,
+      refresh_token: response.refresh_token || response.refresh,
+      expires_in: response.expires_in || 3600,
+      token_type: response.token_type || "Bearer",
+      user: response.user
+    }
+
+    return normalizedResponse
   },
 
   // Logout
   logout: async (): Promise<void> => {
     try {
-      await apiRequest("api/v1/auth/logout/", { method: "POST" })
+      // Send refresh token to logout endpoint to invalidate it on server
+      const refreshToken = localStorage.getItem("refresh_token")
+      if (refreshToken) {
+        await fetch(`${API_BASE_URL}/api/v1/auth/logout/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          },
+          body: JSON.stringify({
+            refresh: refreshToken,
+          }),
+        })
+      }
     } catch (error) {
       console.error("Logout API error:", error)
     } finally {
       // Clear local storage regardless of API response
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("auth_token")
-        localStorage.removeItem("user")
-      }
+      clearAuthTokens()
     }
   },
 
@@ -332,7 +905,20 @@ export const authDataProvider = {
   // Check if user is authenticated
   isAuthenticated: (): boolean => {
     if (typeof window === "undefined") return false
-    return !!localStorage.getItem("auth_token")
+    
+    const accessToken = localStorage.getItem("access_token")
+    const refreshToken = localStorage.getItem("refresh_token")
+    
+    // User is authenticated if they have an access token that's not expired
+    // OR if they have a refresh token (can get new access token)
+    if (!accessToken && !refreshToken) return false
+    
+    // If we have an access token and it's not expired, we're authenticated
+    if (accessToken && !isTokenExpired()) return true
+    
+    // If access token is expired but we have refresh token, we're still authenticated
+    // (the API request function will handle refresh automatically)
+    return !!refreshToken
   },
 
   // Forgot password
@@ -354,6 +940,71 @@ export const authDataProvider = {
       method: "PATCH",
       body: JSON.stringify(userData),
     })
+  },
+
+  // Refresh access token manually
+  refreshToken: async (): Promise<RefreshTokenResponse> => {
+    return refreshAccessToken()
+  },
+
+  // Check if token needs refresh (5 minutes before expiry)
+  shouldRefreshToken: (): boolean => {
+    if (typeof window === "undefined") return false
+    
+    const expiresAt = localStorage.getItem("token_expires_at")
+    if (!expiresAt) return false
+    
+    // Refresh if token expires within 5 minutes
+    const fiveMinutesFromNow = Date.now() + (5 * 60 * 1000)
+    return parseInt(expiresAt) <= fiveMinutesFromNow
+  },
+
+  // Get access token
+  getAccessToken: (): string | null => {
+    if (typeof window === "undefined") return null
+    return localStorage.getItem("access_token")
+  },
+
+  // Get refresh token
+  getRefreshToken: (): string | null => {
+    if (typeof window === "undefined") return null
+    return localStorage.getItem("refresh_token")
+  },
+
+  // Verify current access token
+  verifyToken: async (): Promise<boolean> => {
+    return verifyToken()
+  },
+
+  // Ensure we have a valid access token (refresh if needed)
+  ensureValidToken: async (): Promise<boolean> => {
+    if (typeof window === "undefined") return false
+
+    const accessToken = localStorage.getItem("access_token")
+    const refreshToken = localStorage.getItem("refresh_token")
+
+    // No tokens at all
+    if (!accessToken && !refreshToken) return false
+
+    // If access token exists and is not expired, verify it's still valid
+    if (accessToken && !isTokenExpired()) {
+      const isValid = await verifyToken()
+      if (isValid) return true
+    }
+
+    // If access token is expired or invalid, try to refresh
+    if (refreshToken) {
+      try {
+        await refreshAccessToken()
+        return true
+      } catch (error) {
+        console.error("Failed to refresh token:", error)
+        clearAuthTokens()
+        return false
+      }
+    }
+
+    return false
   },
 }
 

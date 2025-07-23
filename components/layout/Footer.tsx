@@ -4,6 +4,7 @@ import AuthPopup from '../auth/AuthPopup';
 import { Facebook, Instagram, Linkedin, Mail, Phone, Twitter } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import Link from 'next/link';
 
 const Footer = () => {
   const [isOpen, setIsOpen] = useState(false)
@@ -17,7 +18,7 @@ const Footer = () => {
 
   return (
   <footer className="bg-bgdarktheme2 text-gray-100 pt-12 pb-8 px-4 sm:px-6 lg:px-8">
-    <AuthPopup authMode='signup' isOpen={isOpen} onClose={() => setIsOpen(false)} onSuccess={handleSuccess} />
+    <AuthPopup isOpen={isOpen} onClose={() => setIsOpen(false)} onSuccess={handleSuccess} />
     <div className="max-w-7xl mx-auto">
     {/* Top Section */}
     <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-8 mb-12">
@@ -30,15 +31,15 @@ const Footer = () => {
       <div className="space-y-2">
         <div className="flex items-center space-x-2">
         <Mail className="text-gray-400" />
-        <a href="mailto:support@tabla.ma" className="text-gray-400 hover:text-white transition">
+        <Link href="mailto:support@tabla.ma" className="text-gray-400 hover:text-white transition">
           {t('footer.email', 'support@tabla.ma')}
-        </a>
+        </Link>
         </div>
         <div className="flex items-center space-x-2">
         <Phone className="text-gray-400" />
-        <a href="tel:+2125585474758" className="text-gray-400 hover:text-white transition">
+        <Link href="tel:+2125585474758" className="text-gray-400 hover:text-white transition">
           {t('footer.phone', '+212 (558) 547 4758')}
-        </a>
+        </Link>
         </div>
       </div>
       </div>
@@ -47,8 +48,8 @@ const Footer = () => {
       <div>
       <h3 className="text-lg font-semibold text-white mb-4">{t('footer.quickLinks', 'Quick Links')}</h3>
       <ul className="space-y-2">
-        <li><a href="/search" className="text-gray-400 hover:text-white transition">{t('footer.restaurants', 'Restaurants')}</a></li>
-        <li><a href="https://restaurant.tabla.ma/" target='_blank' className="text-gray-400 hover:text-white transition">{t('footer.registerRestaurant', 'Register your restaurant')}</a></li>
+        <li><Link href="/search" className="text-gray-400 hover:text-white transition">{t('footer.restaurants', 'Restaurants')}</Link></li>
+        <li><Link href="https://restaurant.tabla.ma/" target='_blank' className="text-gray-400 hover:text-white transition">{t('footer.registerRestaurant', 'Register your restaurant')}</Link></li>
         <li><button onClick={()=>{setIsOpen(true)}} className="text-gray-400 hover:text-white transition">{t('footer.createAccount', 'Create an account')}</button></li>
       </ul>
       </div>
@@ -57,9 +58,9 @@ const Footer = () => {
       <div>
       <h3 className="text-lg font-semibold text-white mb-4">{t('footer.about', 'About')}</h3>
       <ul className="space-y-2">
-        <li><a href="/about-us" className="text-gray-400 hover:text-white transition">{t('footer.aboutUs', 'About us')}</a></li>
-        <li><a href="/terms-conditions" className="text-gray-400 hover:text-white transition">{t('footer.terms', 'Terms & Conditions')}</a></li>
-        <li><a href="/privacy-policy" className="text-gray-400 hover:text-white transition">{t('footer.privacy', 'Privacy Policy')}</a></li>
+        <li><Link href="/about-us" className="text-gray-400 hover:text-white transition">{t('footer.aboutUs', 'About us')}</Link></li>
+        <li><Link href="/terms" className="text-gray-400 hover:text-white transition">{t('footer.terms', 'Terms & Conditions')}</Link></li>
+        <li><Link href="/privacy-policy" className="text-gray-400 hover:text-white transition">{t('footer.privacy', 'Privacy Policy')}</Link></li>
       </ul>
       </div>
 
@@ -67,10 +68,10 @@ const Footer = () => {
       <div>
       <h3 className="text-lg font-semibold text-white mb-4">{t('footer.navigation', 'Navigation')}</h3>
       <ul className="space-y-2">
-        <li><a href="/" className="text-gray-400 hover:text-white transition">{t('footer.home', 'Home')}</a></li>
-        <li><a href="/about-us" className="text-gray-400 hover:text-white transition">{t('footer.aboutUs', 'About us')}</a></li>
-        <li><a href="/contact" className="text-gray-400 hover:text-white transition">{t('footer.contactUs', 'Contact us')}</a></li>
-        <li><a href="/faq" className="text-gray-400 hover:text-white transition">{t('footer.faq', 'FAQ')}</a></li>
+        <li><Link href="/" className="text-gray-400 hover:text-white transition">{t('footer.home', 'Home')}</Link></li>
+        <li><Link href="/about-us" className="text-gray-400 hover:text-white transition">{t('footer.aboutUs', 'About us')}</Link></li>
+        <li><Link href="/contact" className="text-gray-400 hover:text-white transition">{t('footer.contactUs', 'Contact us')}</Link></li>
+        <li><Link href="/faq" className="text-gray-400 hover:text-white transition">{t('footer.faq', 'FAQ')}</Link></li>
       </ul>
       </div>
     </div>
@@ -85,18 +86,18 @@ const Footer = () => {
       </div>
       
       <div className="flex space-x-4">
-      <a href="#" className="text-gray-400 hover:text-white transition" aria-label={t('footer.facebook', 'Facebook')}>
+      <Link href="#" className="text-gray-400 hover:text-white transition" aria-label={t('footer.facebook', 'Facebook')}>
         <Facebook size={20} />
-      </a>
-      <a href="#" className="text-gray-400 hover:text-white transition" aria-label={t('footer.twitter', 'Twitter')}>
+      </Link>
+      <Link href="#" className="text-gray-400 hover:text-white transition" aria-label={t('footer.twitter', 'Twitter')}>
         <Twitter size={20} />
-      </a>
-      <a href="#" className="text-gray-400 hover:text-white transition" aria-label={t('footer.instagram', 'Instagram')}>
+      </Link>
+      <Link href="#" className="text-gray-400 hover:text-white transition" aria-label={t('footer.instagram', 'Instagram')}>
         <Instagram size={20} />
-      </a>
-      <a href='https://www.linkedin.com/company/tabla-maroc/posts/?feedView=all' target='_blank' className="text-gray-400 hover:text-white transition" aria-label={t('footer.linkedin', 'Linkedin')}>
+      </Link>
+      <Link href='https://www.linkedin.com/company/tabla-maroc/posts/?feedView=all' target='_blank' className="text-gray-400 hover:text-white transition" aria-label={t('footer.linkedin', 'Linkedin')}>
         <Linkedin size={20} />
-      </a>
+      </Link>
       </div>
     </div>
     </div>

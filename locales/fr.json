@@ -1,5 +1,11 @@
 {
-    "hero": {
+  "common": {
+    "retry": "Réessayer",
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "success": "Succès"
+  },
+  "hero": {
     "locationBadge": "Chez Tabla.ma",
     "mainHeading": "Découvrez Votre Prochaine Table",
     "exploreMore": "Explorer Plus",
@@ -16,7 +22,9 @@
     "lightMode": "Passer en mode clair",
     "darkMode": "Passer en mode sombre",
     "welcome": "Bienvenue",
-    "logout": "Déconnexion"
+    "logout": "Déconnexion",
+    "profile": "Profil",
+    "userMenu": "Menu utilisateur"
   },
   "footer": {
     "brandDescription": "Il est un fait établi de longue date qu'un lecteur sera distrait par le contenu lisible d'une page lorsqu'il regarde sa mise en page.",
@@ -95,6 +103,12 @@
   "restaurant":{
     "defaultName": "Restaurant",
     "tasteMoroccoBest": "Goûtez le meilleur du Maroc",
+    "addToFavorites": "Ajouter aux favoris",
+    "removeFromFavorites": "Retirer des favoris",
+    "status": {
+      "open": "Ouvert",
+      "closed": "Fermé"
+    },
     "errorFetchInfo": "Impossible de récupérer les informations du restaurant.",
     "errorFetchHours": "Impossible de récupérer les horaires d'ouverture.",
     "errorFetchMenu": "Impossible de récupérer le menu.",
@@ -172,7 +186,14 @@
       "friday": "Vendredi",
       "saturday": "Samedi",
       "sunday": "Dimanche"
-    }
+    },
+    "like": "J'aime",
+    "liked": "Aimé",
+    "addFavorite": "Ajouter aux favoris",
+    "removeFavorite": "Retirer des favoris",
+    "updating": "Mise à jour...",
+    "loginRequired": "Veuillez vous connecter pour aimer les restaurants",
+    "errorToggleLike": "Erreur lors de la mise à jour du statut favori. Veuillez réessayer."
   },
   "search": {
     "pageTitle": "Recherche - Tabla | Goûtez le Meilleur du Maroc",
@@ -273,19 +294,21 @@
     },
     "myInformation": {
         "title": "Mes informations",
-        "fullName": "Nom complet",
-        "fullNameRequired": "Le nom complet est requis",
-        "fullNameMinLength": "Le nom doit comporter au moins 2 caractères",
+        "firstName": "Prénom",
+        "firstNameRequired": "Le prénom est requis",
+        "firstNameMinLength": "Le prénom doit comporter au moins 2 caractères",
+        "lastName": "Nom de famille",
+        "lastNameRequired": "Le nom de famille est requis",
+        "lastNameMinLength": "Le nom de famille doit comporter au moins 2 caractères",
+        "username": "Nom d'utilisateur",
+        "usernameRequired": "Le nom d'utilisateur est requis",
+        "usernameMinLength": "Le nom d'utilisateur doit comporter au moins 3 caractères",
         "email": "Adresse e-mail",
         "emailRequired": "L'adresse e-mail est requise",
         "emailInvalid": "Adresse e-mail invalide",
         "phone": "Numéro de téléphone",
-        "phoneRequired": "Le numéro de téléphone est requis",
         "phoneInvalid": "Format de numéro de téléphone invalide",
-        "address": "Adresse",
-        "addressRequired": "L'adresse est requise",
-        "addressMinLength": "Veuillez entrer une adresse complète",
-        "memberSince": "Membre depuis",
+        "joinedDate": "Membre depuis",
         "editButton": "Modifier les informations",
         "saveButton": "Enregistrer les modifications",
         "cancelButton": "Annuler"
@@ -299,5 +322,97 @@
       "removeSuccess": "Restaurant retiré des favoris avec succès.",
       "removeError": "Erreur lors du retrait du restaurant des favoris."
     }
+  },
+  "contact": {
+    "title": "Contactez-nous",
+    "phone": "Téléphone",
+    "email": "-mail",
+    "address": "Adresse",
+    "hours": "Heures d'ouverture",
+    "description": "Vous avez des questions ou des commentaires ? Nous serions ravis de vous entendre. Remplissez le formulaire ci-dessous et nous vous répondrons dès que possible.",
+    "form": {
+      "name": "Nom",
+      "email": "-mail",
+      "phone": "Téléphone",
+      "subject": "Sujet",
+      "message": "Message",
+      "sending": "Envoi en cours...",
+      "submit": "Envoyer"
+    },
+    "placeholders":{
+      "name": "Entrez votre nom",
+      "email": "Entrez votre e-mail",
+      "phone": "Entrez votre numéro de téléphone",
+      "subject": "Entrez le sujet",
+      "message": "Tapez votre message ici"
+    }
+  },
+  "about": {
+    "title": "À propos de nous",
+    "description": "Découvrez l'histoire de Tabla et notre mission de vous offrir la meilleure expérience culinaire marocaine.",
+    "mission": "Notre mission",
+    "missionDescription": "Fournir une plateforme qui connecte les amateurs de cuisine marocaine avec les meilleurs restaurants du pays.",
+    "vision": "Notre vision",
+    "visionDescription": "Être la référence en matière de gastronomie marocaine, en mettant en avant la richesse et la diversité de notre culture culinaire."
+  },
+  "faq":{
+    "title": "Foire aux questions",
+    "description": "Trouvez des réponses aux questions les plus fréquentes sur l'utilisation de notre plateforme.", 
+    "stillHaveQuestions": "Vous avez encore des questions ?",
+    "contactUs": "Contactez-nous et nous vous répondrons dès que possible.",
+    "contactSupport": "Contacter le support"
+  },
+  "auth": {
+    "welcomeBack": "Bon Retour",
+    "createAccountTitle": "Créer un Compte",
+    "resetPasswordTitle": "Réinitialiser le Mot de Passe",
+    "verifyEmailTitle": "Vérifier l'Email",
+    "close": "Fermer",
+    "signIn": "Se Connecter",
+    "signUp": "S'Inscrire",
+    "username": "Nom d'utilisateur",
+    "enterUsername": "Entrez votre nom d'utilisateur",
+    "email": "Email",
+    "enterEmail": "Entrez votre email",
+    "password": "Mot de passe",
+    "enterPassword": "Entrez votre mot de passe",
+    "forgotPasswordLink": "Mot de passe oublié ?",
+    "signingIn": "Connexion en cours...",
+    "firstName": "Prénom",
+    "enterFirstName": "Prénom",
+    "lastName": "Nom",
+    "enterLastName": "Nom",
+    "usernameRequired": "Nom d'utilisateur *",
+    "chooseUsername": "Choisissez un nom d'utilisateur",
+    "emailRequired": "Email *",
+    "passwordRequired": "Mot de passe *",
+    "createPassword": "Créez un mot de passe",
+    "confirmPasswordRequired": "Confirmer le Mot de Passe *",
+    "confirmPassword": "Confirmez votre mot de passe",
+    "creatingAccount": "Création du compte...",
+    "createAccount": "Créer un Compte",
+    "forgotPasswordMessage": "Entrez votre adresse email et nous vous enverrons un lien pour réinitialiser votre mot de passe.",
+    "sending": "Envoi en cours...",
+    "sendResetLink": "Envoyer le Lien de Réinitialisation",
+    "backToSignIn": "Retour à la Connexion",
+    "verifyEmailMessage": "Nous avons envoyé un code de vérification à <strong>{{email}}</strong>. Veuillez entrer le code pour vérifier votre compte.",
+    "verificationCode": "Code de Vérification",
+    "enterVerificationCode": "Entrez le code de vérification",
+    "verifying": "Vérification en cours...",
+    "verifyEmail": "Vérifier l'Email",
+    "resendVerificationCode": "Renvoyer le code de vérification",
+    "backToSignUp": "Retour à l'Inscription",
+    "loginSuccess": "Connexion réussie !",
+    "loginError": "Échec de la connexion. Veuillez vérifier vos identifiants.",
+    "passwordsDoNotMatch": "Les mots de passe ne correspondent pas",
+    "passwordTooShort": "Le mot de passe doit contenir au moins 8 caractères",
+    "registerSuccess": "Inscription réussie ! Veuillez vérifier votre email pour les instructions de vérification.",
+    "registerError": "Échec de l'inscription. Veuillez réessayer.",
+    "forgotPasswordSuccess": "Email de réinitialisation envoyé ! Vérifiez votre boîte de réception.",
+    "forgotPasswordError": "Échec de l'envoi de l'email de réinitialisation. Veuillez réessayer.",
+    "verifyEmailSuccess": "Email vérifié avec succès ! Vous pouvez maintenant vous connecter.",
+    "verifyEmailError": "Échec de la vérification. Veuillez vérifier votre code et réessayer.",
+    "resendVerificationSuccess": "Email de vérification renvoyé ! Vérifiez votre boîte de réception.",
+    "resendVerificationError": "Échec du renvoi de l'email de vérification. Veuillez réessayer."
   }
 }

@@ -2,10 +2,10 @@
 
 import type React from "react"
 import { useEffect, useState } from "react"
-import { Sidebar } from "../../../components/profile/SideBar"
-import { MyInformation } from "../../../components/profile/MyInformation"
-import { MyReservations } from "../../../components/profile/MyReservations"
-import { MyFavorites } from "../../../components/profile/MyFavorites"
+import { Sidebar } from "../../components/profile/SideBar"
+import { MyInformation } from "../../components/profile/MyInformation"
+import { MyReservations } from "../../components/profile/MyReservations"
+import { MyFavorites } from "../../components/profile/MyFavorites"
 
 type ActiveSection = "information" | "reservations" | "favorites"
 

@@ -1,10 +1,11 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 import { Star, Clock, Tag, Heart } from "lucide-react"
 import Link from "next/link"
+import { useLikeRestaurant, useUnlikeRestaurant } from "@/hooks/api/useRestaurants"
 
 interface RestaurantCardProps {
   id: number
@@ -29,19 +30,50 @@ export default function RestaurantCard({
   favorite = false,
   onToggleFavorite,
 }: RestaurantCardProps) {
+  const { t } = useTranslation()
   const [isImageLoaded, setIsImageLoaded] = useState(false)
   const [isFavorite, setIsFavorite] = useState(favorite)
+  
+  // React Query mutations for like/unlike
+  const likeRestaurantMutation = useLikeRestaurant()
+  const unlikeRestaurantMutation = useUnlikeRestaurant()
+  
+  const isToggling = likeRestaurantMutation.isPending || unlikeRestaurantMutation.isPending
 
-  const handleFavoriteClick = (e: React.MouseEvent) => {
+  const handleFavoriteClick = async (e: React.MouseEvent) => {
     e.preventDefault() // Prevent the Link navigation
     e.stopPropagation() // Prevent event bubbling
 
-    const newFavoriteState = !isFavorite
-    setIsFavorite(newFavoriteState)
+    if (isToggling) return // Prevent multiple clicks
 
-    // Call the parent component's handler if provided
-    if (onToggleFavorite) {
-      onToggleFavorite(id, newFavoriteState)
+    try {
+      const newFavoriteState = !isFavorite
+
+      if (newFavoriteState) {
+        // Like the restaurant
+        await likeRestaurantMutation.mutateAsync(id)
+        console.log(`Restaurant ${id} liked successfully`)
+      } else {
+        // Unlike the restaurant
+        await unlikeRestaurantMutation.mutateAsync(id)
+        console.log(`Restaurant ${id} unliked successfully`)
+      }
+
+      // Update local state
+      setIsFavorite(newFavoriteState)
+
+      // Call the parent component's handler if provided
+      if (onToggleFavorite) {
+        onToggleFavorite(id, newFavoriteState)
+      }
+
+    } catch (error) {
+      console.error(`Failed to ${isFavorite ? 'unlike' : 'like'} restaurant:`, error)
+      
+      // Show error message to user (you could use a toast notification here)
+      const action = isFavorite ? 'remove from favorites' : 'add to favorites'
+      alert(`Failed to ${action}. Please try again.`)
+      
     }
   }
 
@@ -67,14 +99,19 @@ export default function RestaurantCard({
           {/* Favorite Button */}
           <button
             onClick={handleFavoriteClick}
-            className="absolute left-3 top-3 z-10 rounded-full bg-white/90 p-2 shadow-md transition-all duration-200 hover:bg-white dark:bg-darkthemeitems/90 dark:hover:bg-darkthemeitems"
-            aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+            disabled={isToggling}
+            className="absolute left-3 top-3 z-10 rounded-full bg-white/90 p-2 shadow-md transition-all duration-200 hover:bg-white dark:bg-darkthemeitems/90 dark:hover:bg-darkthemeitems disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label={isFavorite ? t("restaurant.removeFromFavorites", "Remove from favorites") : t("restaurant.addToFavorites", "Add to favorites")}
           >
-            <Heart
-              className={`h-5 w-5 transition-colors ${
-                isFavorite ? "fill-redtheme text-redtheme" : "text-gray-500 hover:text-redtheme dark:text-gray-300"
-              }`}
-            />
+            {isToggling ? (
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-redtheme" />
+            ) : (
+              <Heart
+                className={`h-5 w-5 transition-colors ${
+                  isFavorite ? "fill-redtheme text-redtheme" : "text-gray-500 hover:text-redtheme dark:text-gray-300"
+                }`}
+              />
+            )}
           </button>
 
           {/* Status Badge */}
@@ -85,7 +122,7 @@ export default function RestaurantCard({
               }`}
             >
               <Clock className="h-3 w-3" />
-              <span>{isOpen ? "Open" : "Closed"}</span>
+              <span>{isOpen ? t("restaurant.status.open", "Open") : t("restaurant.status.closed", "Closed")}</span>
             </div>
           </div>
         </div>

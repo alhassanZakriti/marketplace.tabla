@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Download, Moon, Sun, User } from "lucide-react"
 import Logo from "./Logo"
 import SearchBar from "../search/SearchBar"
@@ -18,6 +18,7 @@ const Header = () => {
   const { i18n, isClient } = useClientTranslation()
   const { t } = useTranslation()
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false)
+  const [showUserDropdown, setShowUserDropdown] = useState(false)
   const [shouldShowSearchBar, setShouldShowSearchBar] = useState(false)
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window !== "undefined") {
@@ -30,13 +31,14 @@ const Header = () => {
     return false
   })
 
-   const languages = [
+
+  const languages = [
     { code: "en", name: "English", flag: english },
     { code: "fr", name: "Français", flag: french },
   ]
 
   const currentLanguage = languages.find((lang) => lang.code === i18n?.language) || languages[0]
-
+  
   const changeLanguage = (languageCode: string) => {
     if (isClient && i18n?.changeLanguage) {
       i18n.changeLanguage(languageCode)
@@ -52,9 +54,9 @@ const Header = () => {
       localStorage.setItem("tabla-dark-mode", darkMode.toString())
     }
   }, [darkMode])
-
+  
   const pathname = usePathname()
-
+  
   useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY > 500 || (pathname.includes("search") && window.scrollY > 180)) {
@@ -63,15 +65,40 @@ const Header = () => {
         setShouldShowSearchBar(false)
       }
     }
-
+    
     window.addEventListener("scroll", handleScroll)
     return () => {
       window.removeEventListener("scroll", handleScroll)
     }
   }, [pathname])
-
+  
   const [isOpen, setIsOpen] = useState(false)
   const { user, isAuthenticated, logout } = useAuth()
+  const userDropdownRef = useRef<HTMLDivElement>(null)
+  const languageDropdownRef = useRef<HTMLDivElement>(null)
+  
+  useEffect(() => {
+    if(user) {
+      console.log("User authenticated:", user)
+    }
+  }, [user])
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userDropdownRef.current && !userDropdownRef.current.contains(event.target as Node)) {
+        setShowUserDropdown(false)
+      }
+      if (languageDropdownRef.current && !languageDropdownRef.current.contains(event.target as Node)) {
+        setShowLanguageDropdown(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
 
   const handleSuccess = (data: any) => {
     console.log("Authentication successful:", data)
@@ -108,19 +135,58 @@ const Header = () => {
           </button>
 
           {isAuthenticated && user ? (
-            <div className="flex items-center gap-2">
-              <div className="text-sm">
-                <span className="text-blacktheme dark:text-textdarktheme">
-                  {t("header.welcome", "Welcome")}, {user.username || user.first_name || "User"}
-                </span>
-              </div>
-              <button className="btn-secondary text-sm px-3 py-2" onClick={logout}>
-                {t("header.logout", "Logout")}
+            <div className="relative" ref={userDropdownRef}>
+              <button
+                onClick={() => setShowUserDropdown(!showUserDropdown)}
+                className="btn flex items-center gap-2 bg-softgreytheme dark:bg-darkthemeitems text-blacktheme dark:text-textdarktheme hover:bg-softgreentheme dark:hover:bg-greentheme/20 transition-colors px-3 py-2 rounded-lg font-medium"
+                aria-label={t("header.userMenu", "User menu")}
+              >
+                <User size={20} />
+                <span className="hidden md:block">{user.username || user.first_name || "User"}</span>
               </button>
+
+              {showUserDropdown && (
+                <div className="absolute right-0 top-full mt-1 bg-white dark:bg-darkthemeitems border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg py-1 min-w-[200px] z-50">
+                  <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-600">
+                    <p className="text-sm font-medium text-blacktheme dark:text-textdarktheme">
+                      {user.first_name && user.last_name 
+                        ? `${user.first_name} ${user.last_name}` 
+                        : user.username || "User"}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {user.email}
+                    </p>
+                  </div>
+                  
+                  <Link
+                    href={`/profile`}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-3 text-blacktheme dark:text-textdarktheme"
+                    onClick={() => setShowUserDropdown(false)}
+                  >
+                    <User size={16} />
+                    <span>{t("header.profile", "Profile")}</span>
+                  </Link>
+                  
+                  <button
+                    onClick={() => {
+                      logout()
+                      setShowUserDropdown(false)
+                    }}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-3 text-redtheme hover:text-red-600"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <polyline points="16,17 21,12 16,7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <line x1="21" y1="12" x2="9" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <span>{t("header.logout", "Logout")}</span>
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <button
-              className="btn-primary bg-greentheme  text-whitetheme hover:opacity-90 transition-all px-4 py-2 rounded-lg font-semibold"
+              className="btn-primary bg-greentheme text-whitetheme hover:opacity-90 transition-all px-4 py-2 rounded-lg font-semibold"
               onClick={() => setIsOpen(true)}
             >
               <span className="hidden md:block">{t("header.login", "Login")}</span>
@@ -129,7 +195,7 @@ const Header = () => {
           )}
 
          {/* Language Switcher */}
-          <div className="language-switcher relative">
+          <div className="language-switcher relative" ref={languageDropdownRef}>
             <button
               onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
               className="btn flex items-center gap-2 bg-softgreytheme dark:bg-darkthemeitems text-blacktheme dark:text-textdarktheme hover:bg-softgreentheme dark:hover:bg-greentheme/20 transition-colors px-3 py-2 rounded-lg font-medium"
