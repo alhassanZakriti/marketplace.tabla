@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { restaurantDataProvider, type Reservation, type ReservationsAPIResponse, type BookingRequest, type BookingResponse } from '@/lib/dataProvider'
 import { useAuth } from '@/components/auth/AuthProvider'
+import { useQueryInvalidator } from './invalidationUtils'
 
 // Query keys for reservations
 export const reservationKeys = {
@@ -36,14 +37,15 @@ export const useReservations = () => {
 // Cancel reservation mutation
 export const useCancelReservation = () => {
   const queryClient = useQueryClient()
+  const invalidator = useQueryInvalidator()
   
   return useMutation({
     mutationFn: (id: string | number) => restaurantDataProvider.cancelReservation(id),
-    onSuccess: (data, variables) => {
-      // Update reservation status in cache
-      queryClient.setQueryData(
+    onMutate: async (variables) => {
+      // Optimistic update - mark reservation as cancelled
+      const rollback = await invalidator.optimisticUpdate<ReservationsAPIResponse>(
         reservationKeys.list(),
-        (oldData: ReservationsAPIResponse | undefined) => {
+        (oldData) => {
           if (oldData) {
             return {
               ...oldData,
@@ -57,11 +59,32 @@ export const useCancelReservation = () => {
           return oldData
         }
       )
-      
-      // Invalidate reservations list to ensure data consistency
-      queryClient.invalidateQueries({ queryKey: reservationKeys.list() })
+      return { rollback }
     },
-    onError: (error) => {
+    onSuccess: (data, variables) => {
+      // Invalidate reservations and related restaurant availability
+      invalidator.invalidateReservations()
+      
+      // If we know the restaurant ID from the reservation, invalidate its availability
+      const reservationData = queryClient.getQueryData<ReservationsAPIResponse>(reservationKeys.list())
+      const cancelledReservation = reservationData?.results.find(r => r.id === variables)
+      if (cancelledReservation?.restaurant) {
+        // Invalidate restaurant availability since a slot was freed up
+        queryClient.invalidateQueries({ 
+          predicate: (query) => {
+            const queryKey = query.queryKey
+            return Boolean(queryKey[0] === 'restaurants' && 
+                   queryKey.includes('availability') && 
+                   queryKey.includes(cancelledReservation.restaurant))
+          }
+        })
+      }
+    },
+    onError: (error, variables, context) => {
+      // Rollback optimistic update
+      if (context?.rollback) {
+        context.rollback()
+      }
       console.error('Failed to cancel reservation:', error)
     }
   })
@@ -70,16 +93,29 @@ export const useCancelReservation = () => {
 // Create booking mutation
 export const useCreateBooking = () => {
   const queryClient = useQueryClient()
+  const invalidator = useQueryInvalidator()
   
   return useMutation({
     mutationFn: (bookingData: BookingRequest) => restaurantDataProvider.createBooking(bookingData),
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       // Invalidate reservations list to show the new booking
-      queryClient.invalidateQueries({ queryKey: reservationKeys.list() })
+      invalidator.invalidateReservations()
+      
+      // Invalidate restaurant availability since a slot was taken
+      if (variables.restaurant) {
+        queryClient.invalidateQueries({ 
+          predicate: (query) => {
+            const queryKey = query.queryKey
+            return Boolean(queryKey[0] === 'restaurants' && 
+                   queryKey.includes('availability') && 
+                   queryKey.includes(variables.restaurant))
+          }
+        })
+      }
       
       console.log('Booking created successfully:', data)
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Failed to create booking:', error)
     }
   })

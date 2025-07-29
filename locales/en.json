@@ -3,6 +3,7 @@
     "retry": "Try Again",
     "loading": "Loading...",
     "error": "Error",
+    "close": "Close",
     "errorFetchInfo": "Could not fetch restaurant information.",
     "restaurant": {
       "defaultName": "Restaurant",
@@ -123,6 +124,8 @@
   "hoursNA": "Hours not available",
   "closed": "Closed",
   "openNow": "Open now",
+  "userPhotos": "{{count}} User Photo(s)",
+  "noUserPhotos": "No user photos available",
   "errorLoading": "Error loading restaurant",
   "couldNotLoadInfo": "Could not load restaurant information. Please try again.",
   "tryAgain": "Try Again",
@@ -278,18 +281,50 @@
             "title": "Status",
             "pending": "Pending",
             "confirmed": "Confirmed",
-            "fulfilled": "Fulfilled",
-            "cancelled": "Cancelled"
+            "cancelled": "Cancelled",
+            "noShow": "No Show",
+            "seated": "Seated",
+            "fulfilled": "Fulfilled"
         },
         "actions": {
             "title": "Actions",
             "view": "View",
             "cancel": "Cancel",
-            "review": "Review"
+            "review": "Review",
+            "cancelling": "Cancelling..."
         },
+        "empty": "You don't have any reservations yet.",
+        "emptyHint": "Browse restaurants and make a reservation to see them here.",
+        "notLoggedIn": "Please log in to see your reservations.",
+        "error": "Failed to load your reservations.",
+        "cancelConfirm": "Are you sure you want to cancel this reservation?",
+        "cancelError": "Failed to cancel reservation. Please try again.",
         "view": "View",
         "cancel": "Cancel",
-        "review": "Review"
+        "review": "Review",
+        "details": {
+            "title": "Reservation Details",
+            "basicInfo": "Basic Information",
+            "reservationId": "Reservation ID",
+            "status": "Status",
+            "date": "Date",
+            "time": "Time",
+            "guests": "Number of Guests",
+            "source": "Source",
+            "guestInfo": "Guest Information",
+            "name": "Name",
+            "email": "Email",
+            "phone": "Phone",
+            "additionalInfo": "Additional Information",
+            "preferences": "Preferences",
+            "allergies": "Allergies",
+            "internalNote": "Internal Note",
+            "cancellationInfo": "Cancellation Information",
+            "cancellationNote": "Cancellation Note",
+            "timestamps": "Timestamps",
+            "createdAt": "Created At",
+            "lastEdited": "Last Edited"
+        }
     },
     "myInformation": {
         "title": "My Information",
@@ -320,6 +355,13 @@
       "restaurantName": "Restaurant Name",
       "location": "Location",
       "actions": "Actions"
+    },
+    "authRequired": {
+      "title": "Authentication Required",
+      "message": "You need to be signed in to view and edit your profile information. Please sign in to continue or return to the home page.",
+      "goHome": "Go Home",
+      "signIn": "Sign In",
+      "note": "Your session may have expired. Please sign in again to continue."
     }
   },
   "contact":{

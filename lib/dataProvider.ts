@@ -6,11 +6,19 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   const url = `${API_BASE_URL}/${endpoint.replace(/^\//, "")}`
 
   const defaultOptions: RequestInit = {
-    headers: {
+    ...options,
+  }
+
+  // Set Content-Type header only if not FormData (for file uploads)
+  if (!(options.body instanceof FormData)) {
+    defaultOptions.headers = {
       "Content-Type": "application/json",
       ...options.headers,
-    },
-    ...options,
+    }
+  } else {
+    defaultOptions.headers = {
+      ...options.headers,
+    }
   }
 
   // Add auth token if available
@@ -280,6 +288,28 @@ export interface OpeningHour {
   closing_time: string | null
 }
 
+export interface AvailabilityCheckRequest {
+  date: string // YYYY-MM-DD format
+  party_size: number
+}
+
+export interface AvailabilitySlot {
+  time: string // HH:MM format
+  available: boolean
+  max_capacity?: number
+}
+
+export interface DayAvailability {
+  date: string // YYYY-MM-DD format
+  available: boolean
+  slots: AvailabilitySlot[]
+}
+
+export interface AvailabilityCheckResponse {
+  restaurant_id: number
+  availability: DayAvailability[]
+}
+
 export interface MenuItem {
   name: string
   price: string | number
@@ -322,6 +352,16 @@ export interface Review {
   customer: number
 }
 
+// Extended review interface for user reviews that includes restaurant data
+export interface UserReview extends Review {
+  restaurant_data?: {
+    id: number
+    name: string
+    image?: string
+    address?: string
+  }
+}
+
 export interface RestaurantFavorite {
     id: number;
     name: string;
@@ -340,21 +380,37 @@ export interface GalleryItem {
 }
 
 export interface Reservation {
-  id: number
-  seq_id: number
-  restaurant_name: string
-  customer_name: string
-  customer_email: string
-  customer_phone: string
-  party_size: number
-  reservation_date: string
-  reservation_time: string
-  special_request: string
-  status: "pending" | "confirmed" | "fulfilled" | "cancelled"
-  created_at: string
-  updated_at: string
-  restaurant: number
-  customer: number
+    id: number;
+    seq_id: number;
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone: string;
+    title: string;
+    has_customer: boolean;
+    status: string; // Could be narrowed to a union like "PENDING" | "CONFIRMED" | etc.
+    source: string; // Could be narrowed to "BACK_OFFICE" | "ONLINE" | etc.
+    commenter: string;
+    internal_note: string;
+    number_of_guests: number;
+    date: string; // Format: "YYYY-MM-DD"
+    time: string; // Format: "HH:mm:ss"
+    other_cancellation_reason: boolean;
+    cancellation_note: string | null;
+    review_link: string | null;
+    created_at: string; // ISO date-time
+    edit_at: string; // ISO date-time
+    is_review_sent: boolean;
+    send_review_at: string | null;
+    allergies: string;
+    preferences: string;
+    user: number;
+    restaurant: number;
+    customer: number | null;
+    offer: number | null;
+    area: number | null;
+    cancellation_reason: number | null;
+    occasion: number | null;
 }
 
 export interface ReservationsAPIResponse {
@@ -448,6 +504,20 @@ export const restaurantDataProvider = {
   // Get restaurant availability/opening hours
   getRestaurantAvailability: async (id: string | number): Promise<OpeningHour[]> => {
     return apiRequest<OpeningHour[]>(`api/v1/mp/restaurants/${id}/availability/`)
+  },
+
+  // Check restaurant availability for specific dates and party size
+  checkRestaurantAvailability: async (
+    id: string | number, 
+    request: AvailabilityCheckRequest
+  ): Promise<AvailabilityCheckResponse> => {
+    return apiRequest<AvailabilityCheckResponse>(
+      `api/v1/mp/restaurants/${id}/check-availability/`,
+      {
+        method: 'POST',
+        body: JSON.stringify(request)
+      }
+    )
   },
 
   // Get restaurant menu
@@ -651,18 +721,47 @@ export const restaurantDataProvider = {
   },
 
   // Get user reservations
-  getReservations: async (): Promise<ReservationsAPIResponse> => {
+  getReservations: async (): Promise<Reservation[]> => {
     console.log('📅 Fetching user reservations...')
     try {
-      const result = await apiRequest<ReservationsAPIResponse>("api/v1/mp/reservations/")
+      const result = await apiRequest<Reservation[]>("api/v1/mp/reservations/")
       console.log('📅 Raw API result:', result)
       console.log('📅 Result type:', typeof result)
       console.log('📅 Result keys:', Object.keys(result || {}))
-      console.log('📅 Results array:', result?.results)
-      console.log('📅 Results length:', result?.results?.length)
+      console.log('📅 Results array:', result)
+      console.log('📅 Results length:', result?.length)
       return result
     } catch (error) {
       console.error('📅 Error fetching reservations:', error)
+      throw error
+    }
+  },
+
+  // Get user reviews
+  getUserReviews: async (): Promise<UserReview[]> => {
+    console.log('⭐ Fetching user reviews...')
+    try {
+      const result = await apiRequest<UserReview[]>("api/v1/mp/reviews/")
+      console.log('⭐ User reviews response:', result)
+      return result || []
+    } catch (error) {
+      console.error('⭐ Error fetching user reviews:', error)
+      throw error
+    }
+  },
+
+  // Create a new review for a restaurant
+  createRestaurantReview: async (restaurantId: string | number, reviewData: FormData): Promise<Review> => {
+    console.log('📝 Creating restaurant review...', { restaurantId, reviewData })
+    try {
+      const result = await apiRequest<Review>(`api/v1/mp/restaurants/${restaurantId}/make_review/`, {
+        method: 'POST',
+        body: reviewData, // FormData for file upload support
+      })
+      console.log('📝 Review created successfully:', result)
+      return result
+    } catch (error) {
+      console.error('📝 Error creating review:', error)
       throw error
     }
   },
@@ -729,7 +828,11 @@ export const restaurantDataProvider = {
     try {
       const result = await apiRequest<BookingResponse>("api/v1/mp/reservations/", {
         method: "POST",
-        body: JSON.stringify(bookingData),
+        body: JSON.stringify((prev: BookingRequest) => ({
+          ...prev,
+          ...bookingData,
+          source: "MARKETPLACE",
+        })),
       })
       console.log('📝 Booking created successfully:', result)
       return result

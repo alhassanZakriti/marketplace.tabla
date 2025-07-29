@@ -105,7 +105,7 @@ const Header = () => {
   }
 
   return (
-    <header className="z-[50] sticky top-0 p-2 items-center flex justify-between gap-1 px-6 lt-sm:px-2 shadow-lg shadow-[#00000007] bg-whitetheme dark:bg-bgdarktheme dark:shadow-[#ffffff07] transition-colors duration-200">
+    <header className="z-[50] sticky top-0 sm:p-2 items-center flex justify-between gap-1 sm:px-6 px-2 shadow-lg shadow-[#00000007] bg-whitetheme dark:bg-bgdarktheme dark:shadow-[#ffffff07] transition-colors duration-200">
       <AuthPopup isOpen={isOpen} onClose={() => setIsOpen(false)} onSuccess={handleSuccess} />
 
       <Logo className="horizontal" />
@@ -113,7 +113,7 @@ const Header = () => {
       <div className="lt-lg:hidden">{shouldShowSearchBar && <SearchBar />}</div>
 
       <div className="flex flex-col justify-center items-end gap-2">
-        <div className="flex items-center gap-2 text-greentheme text-sm font-semibold">
+        {!isAuthenticated && <div className="flex items-center gap-2 text-greentheme text-sm font-semibold">
           <a
             href="https://restaurant.tabla.ma/"
             target="_blank"
@@ -126,7 +126,7 @@ const Header = () => {
           <Link href="/contact" className="hover:underline dark:text-whitetheme transition-colors">
             {t("header.contactUs", "Contact Us")}
           </Link>
-        </div>
+        </div>}
 
         <div className="flex items-center gap-2">
           <button className="btn flex gap-2 bg-softgreytheme dark:bg-darkthemeitems text-blacktheme dark:text-textdarktheme hover:bg-softgreentheme dark:hover:bg-greentheme/20 transition-colors px-3 py-2 rounded-lg font-medium">

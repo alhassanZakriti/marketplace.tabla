@@ -236,9 +236,9 @@ const SearchPage = () => {
 
             {/* Main Content */}
             {!restaurantsLoading && !restaurantsError && (
-              <div className="flex flex-col md:flex-row gap-6 mt-8">
+              <div className="flex flex-col lg:flex-row gap-6 mt-8">
                 {/* Restaurant List */}
-                <div className="w-full md:w-7/12 lg:w-8/12">
+                <div className="w-full lg:w-2/3">
                   <div className="mb-4">
                     <h2 className="text-xl font-bold text-blacktheme dark:text-textdarktheme">
                       {t("search.restaurantsFound", { count: totalCount })}
@@ -285,9 +285,14 @@ const SearchPage = () => {
                     </>
                   )}
                 </div>
-                {/* Map */}
-                <div className="w-full md:w-5/12 lg:w-4/12">
-                  <MapComponent restaurants={restaurants} selectedRestaurantId={selectedRestaurant} />
+                {/* Map - Button on mobile, embedded sticky map on desktop */}
+                <div className="w-full lg:w-1/3">
+                  <MapComponent 
+                    restaurants={restaurants} 
+                    selectedRestaurantId={selectedRestaurant}
+                    onRestaurantSelect={setSelectedRestaurant}
+                    isSticky={true}
+                  />
                 </div>
               </div>
             )}

@@ -27,6 +27,7 @@ import {
   useRestaurantAvailability,
   useLikeRestaurant,
   useUnlikeRestaurant,
+  useCreateRestaurantReview,
 } from "@/hooks/api"
 
 type SelectedData = {
@@ -80,6 +81,9 @@ export default function RestaurantPage() {
   // Like/Unlike mutations
   const likeMutation = useLikeRestaurant()
   const unlikeMutation = useUnlikeRestaurant()
+  
+  // Create review mutation
+  const createReviewMutation = useCreateRestaurantReview()
 
   // State for UI components
   const [extraServices, setExtraServices] = useState<ExtraService[]>([])
@@ -178,11 +182,36 @@ export default function RestaurantPage() {
   const [selectedPhoto, setSelectedPhoto] = useState("")
   const [showWriteReview, setShowWriteReview] = useState(false)
 
-  // Like/Favorite functionality
-  const handleSubmitReview = (reviewData: ReviewData) => {
-    console.log("Review submitted:", reviewData)
-    alert(t("restaurant.thankYouReview"))
-    setShowWriteReview(false)
+  // Handle review submission
+  const handleSubmitReview = async (reviewData: FormData) => {
+    try {
+      // Check if user is authenticated
+      if (!isAuthenticated) {
+        alert(t("restaurant.loginRequired"))
+        return
+      }
+      
+      // Ensure we have a valid token
+      const hasValidToken = await ensureValidToken()
+      if (!hasValidToken) {
+        alert(t("restaurant.loginRequired"))
+        return
+      }
+
+      // Submit the review
+      await createReviewMutation.mutateAsync({
+        restaurantId: id,
+        reviewData: reviewData
+      })
+      
+      // Show success message and close form
+      alert(t("restaurant.thankYouReview", "Thank you for your review!"))
+      setShowWriteReview(false)
+    } catch (error) {
+      console.error("Failed to submit review:", error)
+      const errorMessage = error instanceof Error ? error.message : t("restaurant.errorSubmitReview", "Failed to submit review")
+      alert(errorMessage)
+    }
   }
 
   // Handle like/unlike restaurant
@@ -337,7 +366,12 @@ export default function RestaurantPage() {
           />
           <div className="mx-auto z-[400] max-w-2xl p-4 bg-whitetheme dark:bg-darkthemeitems rounded-lg shadow-lg transition-all duration-300 animate-in fade-in zoom-in-95">
             <h1 className="mb-6 text-2xl font-bold text-blacktheme dark:text-textdarktheme">{t("restaurant.writeReview")}</h1>
-            <ReviewForm onSubmit={handleSubmitReview} />
+            <ReviewForm 
+              restaurantId={id}
+              onSubmit={handleSubmitReview}
+              onCancel={() => setShowWriteReview(false)}
+              isLoading={createReviewMutation.isPending}
+            />
           </div>
         </div>
       )}
@@ -795,7 +829,7 @@ export default function RestaurantPage() {
           )}
         </section>
         {/* User Photos */}
-        {gallery && gallery.length > 0 && (
+        {(gallery && gallery.length > 0) ? (
           <section className="mb-12">
             <h2 className="text-2xl font-bold text-blacktheme dark:text-textdarktheme mb-4 transition-colors">
               {t("restaurant.userPhotos", { count: gallery.length })}
@@ -832,7 +866,16 @@ export default function RestaurantPage() {
               </div>
             )}
           </section>
-        )}
+        ):
+          <section className="mb-12">
+            <h2 className="text-2xl font-bold text-blacktheme dark:text-textdarktheme mb-4 transition-colors">
+              {t("restaurant.userPhotos", { count: 0 })}
+            </h2>
+            <div className="text-center py-8">
+              <p className="text-subblack dark:text-textdarktheme/70">{t("restaurant.noUserPhotos")}</p>
+            </div>
+          </section>
+        }
         {/* Reviews */}
         <section className="mb-12">
           <div className="flex justify-between items-center mb-4">

@@ -2,8 +2,9 @@
 
 import type React from "react"
 import { useTranslation } from "react-i18next"
+import { Star } from "lucide-react"
 
-type ActiveSection = "information" | "reservations" | "favorites"
+type ActiveSection = "information" | "reservations" | "favorites" | "reviews"
 
 interface SidebarProps {
   activeSection: ActiveSection
@@ -80,6 +81,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeSection, setActiveSectio
         </svg>
       ),
     },
+    {
+      id: "reviews",
+      label: t("profile.myReviews.title", "My Reviews"),
+      icon: (
+        <Star />
+      ),
+    }
   ]
 
   return (

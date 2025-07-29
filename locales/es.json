@@ -1,0 +1,60 @@
+{
+  "common": {
+    "close": "Cerrar"
+  },
+  "profile": {
+    "myReservations": {
+      "title": "Mis Reservas",
+      "restaurant": "Restaurante",
+      "date": "Fecha",
+      "time": "Hora",
+      "people": "Personas",
+      "specialRequests": "Solicitudes Especiales",
+      "status": {
+        "title": "Estado",
+        "pending": "Pendiente",
+        "confirmed": "Confirmada",
+        "cancelled": "Cancelada",
+        "noShow": "No se presentó",
+        "seated": "Sentado",
+        "fulfilled": "Cumplida"
+      },
+      "actions": {
+        "title": "Acciones",
+        "view": "Ver",
+        "cancel": "Cancelar",
+        "review": "Reseñar",
+        "cancelling": "Cancelando..."
+      },
+      "empty": "No tienes reservas aún.",
+      "emptyHint": "Navega por restaurantes y haz una reserva para verlas aquí.",
+      "notLoggedIn": "Por favor inicia sesión para ver tus reservas.",
+      "error": "Error al cargar tus reservas.",
+      "cancelConfirm": "¿Estás seguro de que quieres cancelar esta reserva?",
+      "cancelError": "Error al cancelar la reserva. Por favor intenta de nuevo.",
+      "details": {
+        "title": "Detalles de la Reserva",
+        "basicInfo": "Información Básica",
+        "reservationId": "ID de Reserva",
+        "status": "Estado",
+        "date": "Fecha",
+        "time": "Hora",
+        "guests": "Número de Huéspedes",
+        "source": "Fuente",
+        "guestInfo": "Información del Huésped",
+        "name": "Nombre",
+        "email": "Email",
+        "phone": "Teléfono",
+        "additionalInfo": "Información Adicional",
+        "preferences": "Preferencias",
+        "allergies": "Alergias",
+        "internalNote": "Nota Interna",
+        "cancellationInfo": "Información de Cancelación",
+        "cancellationNote": "Nota de Cancelación",
+        "timestamps": "Marcas de Tiempo",
+        "createdAt": "Creado el",
+        "lastEdited": "Última Edición"
+      }
+    }
+  }
+}

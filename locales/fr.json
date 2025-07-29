@@ -3,6 +3,7 @@
     "retry": "Réessayer",
     "loading": "Chargement...",
     "error": "Erreur",
+    "close": "Fermer",
     "success": "Succès"
   },
   "hero": {
@@ -104,6 +105,8 @@
     "defaultName": "Restaurant",
     "tasteMoroccoBest": "Goûtez le meilleur du Maroc",
     "addToFavorites": "Ajouter aux favoris",
+    "noUserPhotos": "Aucune photo d'utilisateur disponible",
+    "userPhotos": "{{count}} Photo(s) d'Utilisateur",
     "removeFromFavorites": "Retirer des favoris",
     "status": {
       "open": "Ouvert",
@@ -268,6 +271,17 @@
       "cancelled": "Annulée",
       "pending": "En attente"
     },
+    "myReviews": {
+      "title": "Mes Avis",
+      "noReviews": "Aucun avis trouvé.",
+      "restaurantName": "Nom du Restaurant",
+      "reviewDate": "Date de l'Avis",
+      "rating": "Note",
+      "reviewText": "Texte de l'Avis",
+      "editReview": "Modifier l'Avis",
+      "deleteReview": "Supprimer l'Avis",
+      "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cet avis ?"
+    },
     "myReservations":{
         "title": "Mes Réservations",
         "restaurant": "Restaurant",
@@ -277,20 +291,52 @@
         "specialRequests": "Demandes Spéciales",
         "status": {
             "title": "Statut",
+            "pending": "En attente",
             "confirmed": "Confirmée",
-            "fulfilled": "honorée",
             "cancelled": "Annulée",
-            "pending": "En attente"
+            "noShow": "Absent",
+            "seated": "Installé",
+            "fulfilled": "Honorée"
         },
         "actions": {
             "title": "Actions",
             "view": "Voir",
             "cancel": "Annuler",
-            "review": "Évaluer"
+            "review": "Évaluer",
+            "cancelling": "Annulation..."
         },
+        "empty": "Vous n'avez pas encore de réservations.",
+        "emptyHint": "Parcourez les restaurants et faites une réservation pour les voir ici.",
+        "notLoggedIn": "Veuillez vous connecter pour voir vos réservations.",
+        "error": "Échec du chargement de vos réservations.",
+        "cancelConfirm": "Êtes-vous sûr de vouloir annuler cette réservation?",
+        "cancelError": "Échec de l'annulation de la réservation. Veuillez réessayer.",
         "view": "Voir",
         "cancel": "Annuler",
-        "review": "Évaluer"
+        "review": "Évaluer",
+        "details": {
+            "title": "Détails de la Réservation",
+            "basicInfo": "Informations de Base",
+            "reservationId": "ID de Réservation",
+            "status": "Statut",
+            "date": "Date",
+            "time": "Heure",
+            "guests": "Nombre d'Invités",
+            "source": "Source",
+            "guestInfo": "Informations de l'Invité",
+            "name": "Nom",
+            "email": "Email",
+            "phone": "Téléphone",
+            "additionalInfo": "Informations Supplémentaires",
+            "preferences": "Préférences",
+            "allergies": "Allergies",
+            "internalNote": "Note Interne",
+            "cancellationInfo": "Informations d'Annulation",
+            "cancellationNote": "Note d'Annulation",
+            "timestamps": "Horodatages",
+            "createdAt": "Créé le",
+            "lastEdited": "Dernière Modification"
+        }
     },
     "myInformation": {
         "title": "Mes informations",

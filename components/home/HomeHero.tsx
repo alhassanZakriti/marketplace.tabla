@@ -72,7 +72,7 @@ function HomeHero() {
             className="mb-8 md:mb-12"
           >
             {/* Location Badge */}
-            <div className="inline-flex items-center gap-2 px-4] py-1.5 px-2 lt-md:mt-20 bg-white/10 backdrop-blur-sm rounded-full mb-4">
+            <div className="mt-[20vh] inline-flex items-center gap-2 px-4] py-1.5 px-2 lt-md:mt-20 bg-white/10 backdrop-blur-sm rounded-full mb-4">
               <Image
                 src={locationIcon}
                 className="w-4 h-4"
@@ -81,7 +81,7 @@ function HomeHero() {
                 
                 alt={t("hero.locationIconAlt", "Location icon")}
               />
-              <span className="text-white font-medium text-sm">{t("hero.locationBadge", "at Tabla.ma")}</span>
+              <span className="text-white font-medium text-sm ">{t("hero.locationBadge", "at Tabla.ma")}</span>
             </div>
 
             {/* Main Heading */}

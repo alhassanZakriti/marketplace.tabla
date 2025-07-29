@@ -1,36 +1,20 @@
 "use client"
 import type React from "react"
+import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useReservations, useCancelReservation } from "@/hooks/api/useReservations"
 import { useAuth } from "../auth/AuthProvider"
+import type { Reservation } from "@/lib/dataProvider"
 
 export const MyReservations: React.FC = () => {
   const { t } = useTranslation()
   const { isAuthenticated } = useAuth()
+  const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null)
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false)
 
   // Fetch reservations using React Query
   const { data: reservationsData, isLoading, error } = useReservations()
   const cancelReservationMutation = useCancelReservation()
-
-  // Debug logging
-  console.log('MyReservations Debug:', {
-    isAuthenticated,
-    reservationsData,
-    isLoading,
-    error: error?.message || error,
-    hasResults: reservationsData?.results?.length,
-    rawData: JSON.stringify(reservationsData, null, 2)
-  })
-
-  // More detailed debug for data structure
-  if (reservationsData) {
-    console.log('Raw reservations data:', reservationsData)
-    console.log('Results array:', reservationsData.results)
-    console.log('Results length:', reservationsData.results?.length)
-    if (reservationsData.results && reservationsData.results.length > 0) {
-      console.log('First reservation:', reservationsData.results[0])
-    }
-  }
 
   const handleCancelReservation = async (reservationId: number) => {
     if (window.confirm(t("profile.myReservations.cancelConfirm", "Are you sure you want to cancel this reservation?"))) {
@@ -42,6 +26,16 @@ export const MyReservations: React.FC = () => {
         alert(t("profile.myReservations.cancelError", "Failed to cancel reservation. Please try again."))
       }
     }
+  }
+
+  const handleViewReservation = (reservation: Reservation) => {
+    setSelectedReservation(reservation)
+    setIsViewModalOpen(true)
+  }
+
+  const handleCloseModal = () => {
+    setIsViewModalOpen(false)
+    setSelectedReservation(null)
   }
 
   // If user is not authenticated, show login message
@@ -173,15 +167,8 @@ export const MyReservations: React.FC = () => {
     )
   }
 
-  const reservations = reservationsData?.results || []
+  const reservations = reservationsData || []
 
-  // Debug the reservations array
-  console.log('Final reservations array:', reservations)
-  console.log('Array length:', reservations.length)
-  console.log('isLoading:', isLoading)
-  console.log('reservationsData:', reservationsData)
-
-  // Only show empty state if we're not loading AND we have confirmed empty results
   if (!isLoading && reservations.length === 0) {
     return (
       <div className="space-y-6">
@@ -215,6 +202,7 @@ export const MyReservations: React.FC = () => {
       </div>
     )
   }
+  
   const formatDate = (dateString: string) => {
     const options: Intl.DateTimeFormatOptions = { year: "numeric", month: "long", day: "numeric" }
     return new Date(dateString).toLocaleDateString(undefined, options)
@@ -222,19 +210,23 @@ export const MyReservations: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
-      case "confirmed":
-        return "bg-softgreentheme text-greentheme dark:bg-greentheme dark:text-whitetheme"
       case "pending":
         return "bg-softbluetheme text-bluetheme dark:bg-bluetheme dark:text-whitetheme"
-      case "fulfilled":
-        return "bg-softpurpletheme text-purpletheme dark:bg-purpletheme dark:text-whitetheme"
+      case "confirmed":
+      case "approved": // Handle both CONFIRMED and APPROVED status
+        return "bg-softgreentheme text-greentheme dark:bg-greentheme dark:text-whitetheme"
       case "cancelled":
         return "bg-softredtheme text-redtheme dark:bg-redtheme dark:text-whitetheme"
+      case "no_show":
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100"
+      case "seated":
+        return "bg-softpurpletheme text-purpletheme dark:bg-purpletheme dark:text-whitetheme"
+      case "fulfilled":
+        return "bg-emerald-100 text-emerald-800 dark:bg-emerald-800 dark:text-emerald-100"
       default:
         return "bg-softgreytheme text-greytheme dark:bg-greytheme dark:text-whitetheme"
     }
   }
-
 
   return (
     <div className="space-y-6">
@@ -242,23 +234,7 @@ export const MyReservations: React.FC = () => {
         {t("profile.myReservations.title", "My Reservations")}
       </h2>
 
-      {/* DEBUG: Show raw data */}
-      {reservationsData && (
-        <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg text-xs">
-          <h3 className="font-bold mb-2">DEBUG: Raw API Response</h3>
-          <p><strong>Count:</strong> {reservationsData.count}</p>
-          <p><strong>Results Length:</strong> {reservationsData.results?.length || 0}</p>
-          <p><strong>Loading:</strong> {isLoading ? 'Yes' : 'No'}</p>
-          <pre className="whitespace-pre-wrap mt-2">{JSON.stringify(reservationsData, null, 2)}</pre>
-        </div>
-      )}
-
       <div className="overflow-x-auto">
-        {/* DEBUG: Table rendering debug */}
-        <div className="bg-blue-100 dark:bg-blue-900 p-2 rounded mb-4 text-xs">
-          <p><strong>Rendering table with {reservations.length} reservations</strong></p>
-        </div>
-        
         <table className="min-w-full divide-y divide-softgreytheme dark:divide-darkthemeitems">
           <thead>
             <tr>
@@ -288,34 +264,46 @@ export const MyReservations: React.FC = () => {
           <tbody className="divide-y divide-softgreytheme dark:divide-darkthemeitems">
             {reservations.map((reservation) => (
               <tr key={reservation.id}>
-                <td className="px-4 py-4 text-sm text-blacktheme dark:text-textdarktheme">{reservation.restaurant_name}</td>
+                <td className="px-4 py-4 text-sm text-blacktheme dark:text-textdarktheme">{reservation.restaurant}</td>
                 <td className="px-4 py-4 text-sm text-blacktheme dark:text-textdarktheme">
-                  {formatDate(reservation.reservation_date)}
+                  {formatDate(reservation.date)}
                 </td>
-                <td className="px-4 py-4 text-sm text-blacktheme dark:text-textdarktheme">{reservation.reservation_time}</td>
-                <td className="px-4 py-4 text-sm text-blacktheme dark:text-textdarktheme">{reservation.party_size}</td>
+                <td className="px-4 py-4 text-sm text-blacktheme dark:text-textdarktheme">{reservation.time}</td>
+                <td className="px-4 py-4 text-sm text-blacktheme dark:text-textdarktheme">{reservation.number_of_guests}</td>
                 <td className="px-4 py-4 text-sm text-blacktheme dark:text-textdarktheme">
-                  {reservation.special_request || "-"}
+                  {reservation.preferences || "-"}
                 </td>
                 <td className="px-4 py-4 text-sm">
                   <span
                     className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(reservation.status)}`}
                   >
-                    {reservation.status === "fulfilled"
-                      ? t("profile.myReservations.status.fulfilled")
-                      : reservation.status === "cancelled"
-                      ? t("profile.myReservations.status.cancelled")
-                      : reservation.status === "confirmed"
+                    {reservation.status === "PENDING"
+                      ? t("profile.myReservations.status.pending")
+                      : reservation.status === "APPROVED"
                       ? t("profile.myReservations.status.confirmed")
-                      : t("profile.myReservations.status.pending")}
+                      : reservation.status === "CANCELLED"
+                      ? t("profile.myReservations.status.cancelled")
+                      : reservation.status === "NO_SHOW"
+                      ? t("profile.myReservations.status.noShow")
+                      : reservation.status === "SEATED"
+                      ? t("profile.myReservations.status.seated")
+                      : reservation.status === "FULFILLED"
+                      ? t("profile.myReservations.status.fulfilled")
+                      : reservation.status}
                   </span>
                 </td>
                 <td className="px-4 py-4 text-sm">
-                  <button className="text-greentheme hover:text-opacity-80 dark:text-whitetheme dark:hover:text-opacity-80 mr-3">
+                  <button 
+                    onClick={() => handleViewReservation(reservation)}
+                    className="text-greentheme hover:text-opacity-80 dark:text-whitetheme dark:hover:text-opacity-80 mr-3"
+                  >
                     {t("profile.myReservations.actions.view")}
                   </button>
                   {reservation.status !== "fulfilled" &&
-                    reservation.status !== "cancelled" && (
+                    reservation.status !== "cancelled" && 
+                    reservation.status !== "no show" &&
+                    reservation.status !== "noshow" &&
+                    reservation.status !== "no_show" && (
                       <button 
                         onClick={() => handleCancelReservation(reservation.id)}
                         disabled={cancelReservationMutation.isPending}
@@ -336,6 +324,244 @@ export const MyReservations: React.FC = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Reservation Detail Modal */}
+      {isViewModalOpen && selectedReservation && (
+        <div className="fixed inset-0 bg-black/20 bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="w-full h-full opacity-0 z-0" onClick={handleCloseModal}/>
+          <div className="bg-whitetheme absolute dark:bg-darktheme rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              {/* Modal Header */}
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-semibold text-blacktheme dark:text-textdarktheme">
+                  {t("profile.myReservations.details.title", "Reservation Details")}
+                </h3>
+                <button 
+                  onClick={handleCloseModal}
+                  className="text-greytheme hover:text-blacktheme dark:text-textdarktheme dark:hover:text-whitetheme"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M18 6 6 18"></path>
+                    <path d="M6 6l12 12"></path>
+                  </svg>
+                </button>
+              </div>
+
+              {/* Reservation Details */}
+              <div className="space-y-6">
+                {/* Basic Information */}
+                <div>
+                  <h4 className="text-lg font-medium text-blacktheme dark:text-textdarktheme mb-3">
+                    {t("profile.myReservations.details.basicInfo", "Basic Information")}
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-greytheme dark:text-textdarktheme">
+                        {t("profile.myReservations.details.reservationId", "Reservation ID")}
+                      </label>
+                      <p className="text-blacktheme dark:text-textdarktheme">#{selectedReservation.seq_id}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-greytheme dark:text-textdarktheme">
+                        {t("profile.myReservations.details.status", "Status")}
+                      </label>
+                      <p className="text-blacktheme dark:text-textdarktheme">
+                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedReservation.status)}`}>
+                          {selectedReservation.status === "PENDING"
+                            ? t("profile.myReservations.status.pending")
+                            : selectedReservation.status === "APPROVED"
+                            ? t("profile.myReservations.status.confirmed")
+                            : selectedReservation.status === "CANCELLED"
+                            ? t("profile.myReservations.status.cancelled")
+                            : selectedReservation.status === "NO_SHOW"
+                            ? t("profile.myReservations.status.noShow")
+                            : selectedReservation.status === "SEATED"
+                            ? t("profile.myReservations.status.seated")
+                            : selectedReservation.status === "FULFILLED"
+                            ? t("profile.myReservations.status.fulfilled")
+                            : selectedReservation.status}
+                        </span>
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-greytheme dark:text-textdarktheme">
+                        {t("profile.myReservations.details.date", "Date")}
+                      </label>
+                      <p className="text-blacktheme dark:text-textdarktheme">{formatDate(selectedReservation.date)}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-greytheme dark:text-textdarktheme">
+                        {t("profile.myReservations.details.time", "Time")}
+                      </label>
+                      <p className="text-blacktheme dark:text-textdarktheme">{selectedReservation.time}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-greytheme dark:text-textdarktheme">
+                        {t("profile.myReservations.details.guests", "Number of Guests")}
+                      </label>
+                      <p className="text-blacktheme dark:text-textdarktheme">{selectedReservation.number_of_guests}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-greytheme dark:text-textdarktheme">
+                        {t("profile.myReservations.details.source", "Source")}
+                      </label>
+                      <p className="text-blacktheme dark:text-textdarktheme">{selectedReservation.source}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Guest Information */}
+                <div>
+                  <h4 className="text-lg font-medium text-blacktheme dark:text-textdarktheme mb-3">
+                    {t("profile.myReservations.details.guestInfo", "Guest Information")}
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-greytheme dark:text-textdarktheme">
+                        {t("profile.myReservations.details.name", "Name")}
+                      </label>
+                      <p className="text-blacktheme dark:text-textdarktheme">
+                        {selectedReservation.title} {selectedReservation.first_name} {selectedReservation.last_name}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-greytheme dark:text-textdarktheme">
+                        {t("profile.myReservations.details.email", "Email")}
+                      </label>
+                      <p className="text-blacktheme dark:text-textdarktheme">{selectedReservation.email}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-greytheme dark:text-textdarktheme">
+                        {t("profile.myReservations.details.phone", "Phone")}
+                      </label>
+                      <p className="text-blacktheme dark:text-textdarktheme">{selectedReservation.phone}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Special Requests & Notes */}
+                {(selectedReservation.preferences || selectedReservation.allergies || selectedReservation.internal_note) && (
+                  <div>
+                    <h4 className="text-lg font-medium text-blacktheme dark:text-textdarktheme mb-3">
+                      {t("profile.myReservations.details.additionalInfo", "Additional Information")}
+                    </h4>
+                    <div className="space-y-4">
+                      {selectedReservation.preferences && (
+                        <div>
+                          <label className="text-sm font-medium text-greytheme dark:text-textdarktheme">
+                            {t("profile.myReservations.details.preferences", "Preferences")}
+                          </label>
+                          <p className="text-blacktheme dark:text-textdarktheme">{selectedReservation.preferences}</p>
+                        </div>
+                      )}
+                      {selectedReservation.allergies && (
+                        <div>
+                          <label className="text-sm font-medium text-greytheme dark:text-textdarktheme">
+                            {t("profile.myReservations.details.allergies", "Allergies")}
+                          </label>
+                          <p className="text-blacktheme dark:text-textdarktheme">{selectedReservation.allergies}</p>
+                        </div>
+                      )}
+                      {selectedReservation.internal_note && (
+                        <div>
+                          <label className="text-sm font-medium text-greytheme dark:text-textdarktheme">
+                            {t("profile.myReservations.details.internalNote", "Internal Note")}
+                          </label>
+                          <p className="text-blacktheme dark:text-textdarktheme">{selectedReservation.internal_note}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Cancellation Information */}
+                {(selectedReservation.status === "cancelled" && selectedReservation.cancellation_note) && (
+                  <div>
+                    <h4 className="text-lg font-medium text-blacktheme dark:text-textdarktheme mb-3">
+                      {t("profile.myReservations.details.cancellationInfo", "Cancellation Information")}
+                    </h4>
+                    <div>
+                      <label className="text-sm font-medium text-greytheme dark:text-textdarktheme">
+                        {t("profile.myReservations.details.cancellationNote", "Cancellation Note")}
+                      </label>
+                      <p className="text-blacktheme dark:text-textdarktheme">{selectedReservation.cancellation_note}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Timestamps */}
+                <div>
+                  <h4 className="text-lg font-medium text-blacktheme dark:text-textdarktheme mb-3">
+                    {t("profile.myReservations.details.timestamps", "Timestamps")}
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-greytheme dark:text-textdarktheme">
+                        {t("profile.myReservations.details.createdAt", "Created At")}
+                      </label>
+                      <p className="text-blacktheme dark:text-textdarktheme">
+                        {new Date(selectedReservation.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-greytheme dark:text-textdarktheme">
+                        {t("profile.myReservations.details.lastEdited", "Last Edited")}
+                      </label>
+                      <p className="text-blacktheme dark:text-textdarktheme">
+                        {new Date(selectedReservation.edit_at).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex justify-end space-x-3 mt-6 pt-6 border-t border-softgreytheme dark:border-darkthemeitems">
+                <button
+                  onClick={handleCloseModal}
+                  className="px-4 py-2 bg-greytheme text-whitetheme rounded-lg hover:bg-opacity-80 transition-colors"
+                >
+                  {t("common.close", "Close")}
+                </button>
+                {selectedReservation.status !== "fulfilled" &&
+                  selectedReservation.status !== "cancelled" && 
+                  selectedReservation.status !== "no show" &&
+                  selectedReservation.status !== "noshow" &&
+                  selectedReservation.status !== "no_show" && (
+                    <button 
+                      onClick={() => {
+                        handleCancelReservation(selectedReservation.id)
+                        handleCloseModal()
+                      }}
+                      disabled={cancelReservationMutation.isPending}
+                      className="px-4 py-2 bg-redtheme text-whitetheme rounded-lg hover:bg-opacity-80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {cancelReservationMutation.isPending ? 
+                        t("profile.myReservations.actions.cancelling", "Cancelling...") : 
+                        t("profile.myReservations.actions.cancel")
+                      }
+                    </button>
+                  )}
+                {selectedReservation.status === "fulfilled" && (
+                  <button className="px-4 py-2 bg-purpletheme text-whitetheme rounded-lg hover:bg-opacity-80 transition-colors">
+                    {t("profile.myReservations.actions.review")}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

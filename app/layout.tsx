@@ -5,6 +5,7 @@ import "./globals.css"
 import I18nProvider from "../providers/I18nProvider"
 import Header from "../components/layout/Header" // Import Header component
 import Footer from "../components/layout/Footer" // Import Footer component
+import AutoRefreshManager from "../components/utils/AutoRefreshManager" // Import AutoRefresh component
 import { ThemeProvider } from "@/theme/ThemeProvider"
 import { AuthProvider } from "@/components/auth/AuthProvider"
 import QueryProvider from "@/providers/QueryProvider"
@@ -42,7 +43,7 @@ export default function RootLayout({
           <ThemeProvider>
             <QueryProvider>
               <AuthProvider>
-
+                <AutoRefreshManager />
                 <Header />
                 <div className="bg-white dark:bg-bgdarktheme">{children}</div>
                 <Footer />

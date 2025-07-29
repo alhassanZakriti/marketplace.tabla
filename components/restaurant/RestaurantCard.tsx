@@ -5,7 +5,7 @@ import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Star, Clock, Tag, Heart } from "lucide-react"
 import Link from "next/link"
-import { useLikeRestaurant, useUnlikeRestaurant } from "@/hooks/api/useRestaurants"
+import { useLikeRestaurant, useUnlikeRestaurant, useManualInvalidation } from "@/hooks/api"
 
 interface RestaurantCardProps {
   id: number
@@ -37,6 +37,7 @@ export default function RestaurantCard({
   // React Query mutations for like/unlike
   const likeRestaurantMutation = useLikeRestaurant()
   const unlikeRestaurantMutation = useUnlikeRestaurant()
+  const { onRestaurantInteraction } = useManualInvalidation()
   
   const isToggling = likeRestaurantMutation.isPending || unlikeRestaurantMutation.isPending
 
@@ -61,6 +62,9 @@ export default function RestaurantCard({
 
       // Update local state
       setIsFavorite(newFavoriteState)
+
+      // Trigger additional invalidations for immediate UI updates
+      onRestaurantInteraction(id)
 
       // Call the parent component's handler if provided
       if (onToggleFavorite) {

@@ -4,6 +4,8 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
+import { useRouter } from "next/navigation"
+import { LogIn, Home, AlertTriangle } from "lucide-react"
 import { useAuth } from "../auth/AuthProvider"
 import { dataProvider, type User } from "@/lib/dataProvider"
 
@@ -17,12 +19,13 @@ type UserInformation = {
 
 export const MyInformation: React.FC = () => {
     const { t } = useTranslation()
+    const router = useRouter()
     const [isEditing, setIsEditing] = useState(false)
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [userData, setUserData] = useState<User | null>(null)
-    const { user: authUser } = useAuth()
+    const { user: authUser, isAuthenticated, loading: authLoading } = useAuth()
 
     const {
         register,
@@ -100,7 +103,54 @@ export const MyInformation: React.FC = () => {
         setError(null)
     }
 
-    if (loading) {
+    // Authentication guard - show this if user is not authenticated
+    if (!authLoading && !isAuthenticated) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <div className="text-center max-w-md mx-auto p-8 bg-white dark:bg-darkthemeitems rounded-xl shadow-lg border border-softgreytheme dark:border-gray-600">
+                    <div className="w-16 h-16 mx-auto mb-6 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center">
+                        <AlertTriangle className="w-8 h-8 text-red-500" />
+                    </div>
+                    
+                    <h2 className="text-xl font-bold text-blacktheme dark:text-textdarktheme mb-3">
+                        {t("profile.authRequired.title", "Authentication Required")}
+                    </h2>
+                    
+                    <p className="text-gray-600 dark:text-gray-400 mb-6 leading-relaxed">
+                        {t("profile.authRequired.message", "You need to be signed in to view and edit your profile information. Please sign in to continue or return to the home page.")}
+                    </p>
+                    
+                    <div className="flex flex-col sm:flex-row gap-3">
+                        <button
+                            onClick={() => router.push('/')}
+                            className="flex-1 inline-flex items-center justify-center px-4 py-3 border border-softgreytheme dark:border-gray-600 text-blacktheme dark:text-textdarktheme font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-200"
+                        >
+                            <Home className="w-4 h-4 mr-2" />
+                            {t("profile.authRequired.goHome", "Go Home")}
+                        </button>
+                        
+                        <button
+                            onClick={() => {
+                                // You can implement your sign-in logic here
+                                // For now, we'll redirect to home and let the AuthPopup handle it
+                                router.push('/?showAuth=true')
+                            }}
+                            className="flex-1 inline-flex items-center justify-center px-4 py-3 bg-greentheme hover:bg-greentheme/80 text-white font-medium rounded-lg transition-colors duration-200"
+                        >
+                            <LogIn className="w-4 h-4 mr-2" />
+                            {t("profile.authRequired.signIn", "Sign In")}
+                        </button>
+                    </div>
+                    
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-4">
+                        {t("profile.authRequired.note", "Your session may have expired. Please sign in again to continue.")}
+                    </p>
+                </div>
+            </div>
+        )
+    }
+
+    if (authLoading || loading) {
         return (
             <div className="space-y-6">
                 <h2 className="text-xl font-semibold text-blacktheme dark:text-textdarktheme">
@@ -185,7 +235,7 @@ export const MyInformation: React.FC = () => {
                             {errors.last_name && <p className="mt-1 text-sm text-redtheme">{errors.last_name.message}</p>}
                         </div>
 
-                        <div>
+                        {/* <div>
                             <label className="block text-sm font-medium text-greytheme dark:text-textdarktheme mb-1">
                                 {t("profile.myInformation.username", "Username")}
                             </label>
@@ -202,7 +252,7 @@ export const MyInformation: React.FC = () => {
                                     ${isEditing ? "focus:border-greentheme focus:ring-1 focus:ring-greentheme outline-none" : ""}`}
                             />
                             {errors.username && <p className="mt-1 text-sm text-redtheme">{errors.username.message}</p>}
-                        </div>
+                        </div> */}
                     </div>
 
                     <div className="space-y-4">
@@ -248,7 +298,7 @@ export const MyInformation: React.FC = () => {
                             />
                             {errors.phone && <p className="mt-1 text-sm text-redtheme">{errors.phone.message}</p>}
                         </div>
-
+{/* 
                         <div>
                             <label className="block text-sm font-medium text-greytheme dark:text-textdarktheme mb-1">
                                 {t("profile.myInformation.joinedDate", "Member Since")}
@@ -260,7 +310,7 @@ export const MyInformation: React.FC = () => {
                                 className="w-full p-3 border border-softgreytheme dark:border-darkthemeitems 
                                     rounded-lg bg-softgreytheme dark:bg-darkthemeitems text-blacktheme dark:text-textdarktheme cursor-default"
                             />
-                        </div>
+                        </div> */}
                     </div>
                 </div>
 

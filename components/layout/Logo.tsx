@@ -11,7 +11,7 @@ interface Props {
 const Logo = (props:Props) => {
   return (
     (!props.nolink) ?
-    <Link href='/' aria-disabled={props.nolink || false} className={`flex h-[70px] px-6 lt-sm:p-0 ${props.className && props.className === 'vertical'? 'flex-col items-center gap-3':'flex-row items-center' }`}>
+    <Link href='/' aria-disabled={props.nolink || false} className={`flex h-[70px] sm:px-6 p-0 ${props.className && props.className === 'vertical'? 'flex-col items-center gap-3':'flex-row items-center' }`}>
       <Image src={logo} alt='logo' className='w-[48px]' />
       {props.className ? <div >
         <svg height="46" viewBox="0 0 161 77" fill="none" xmlns="http://www.w3.org/2000/svg">

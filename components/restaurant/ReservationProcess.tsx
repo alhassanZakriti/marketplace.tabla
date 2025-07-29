@@ -1,10 +1,12 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { format } from "date-fns"
 import OurCalendar from "../calendar/OurCalendar"
 import BookingForm from "./BookingForm"
+import { useRestaurantAvailability } from "@/hooks/api/useRestaurants"
+import { useManualInvalidation } from "@/hooks/api"
 
 type SelectedData = {
   reserveDate: string
@@ -52,10 +54,76 @@ const ReservationProcess: React.FC<ReservationProcessProps> = (props) => {
   )
   const [showBookingForm, setShowBookingForm] = useState(false)
 
+  // Hooks for data management
+  const { onReservationChange } = useManualInvalidation()
+
+  // Get restaurant availability (opening days/hours) - same as restaurant profile
+  const { data: restaurantAvailability, isLoading: isLoadingAvailability } = useRestaurantAvailability(
+    props.restaurantId || 0,
+    !!props.restaurantId
+  )
+
+  // Helper function to get available time slots for a specific date
+  const getAvailableTimeSlotsForDate = (date: Date): string[] => {
+    if (!props.restaurantId || !restaurantAvailability) return []
+    
+    const dayName = format(date, 'EEEE').toLowerCase() // Get day name (e.g., 'monday')
+    const dayAvailability = restaurantAvailability.find(day => 
+      day.day_name.toLowerCase() === dayName
+    )
+    
+    if (!dayAvailability || dayAvailability.is_closed) return []
+    
+    // Generate time slots between opening and closing times
+    const openTime = dayAvailability.opening_time
+    const closeTime = dayAvailability.closing_time
+    
+    if (!openTime || !closeTime) return []
+    
+    const slots: string[] = []
+    const [openHour, openMinute] = openTime.split(':').map(Number)
+    const [closeHour, closeMinute] = closeTime.split(':').map(Number)
+    
+    let currentHour = openHour
+    let currentMinute = openMinute
+    
+    while (currentHour < closeHour || (currentHour === closeHour && currentMinute < closeMinute)) {
+      const timeString = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`
+      slots.push(timeString)
+      
+      // Increment by 30 minutes
+      currentMinute += 30
+      if (currentMinute >= 60) {
+        currentMinute = 0
+        currentHour += 1
+      }
+    }
+    
+    return slots
+  }
+
+  // Helper function to check if a date is available based on restaurant availability
+  const isDateAvailable = (date: Date): boolean => {
+    if (!props.restaurantId || !restaurantAvailability) return true // Allow all dates if no restaurant ID or data
+    
+    const dayName = format(date, 'EEEE').toLowerCase() // Get day name (e.g., 'monday')
+    const dayAvailability = restaurantAvailability.find((day: any) => 
+      day.day_name.toLowerCase() === dayName
+    )
+    
+    // Check if the day is open and not closed
+    return dayAvailability ? !dayAvailability.is_closed : false
+  }
+
   const handleDateClick = (day: Date) => {
     setSelectedDate(day)
     const formattedDate = format(day, "yyyy-MM-dd")
     setSelectedData((prevData) => ({ ...prevData, reserveDate: formattedDate.toString() }))
+    // Reset selected time when date changes as availability may change
+    if (props.restaurantId && selectedTime) {
+      setSelectedTime(null)
+      setSelectedData((prevData) => ({ ...prevData, time: "" }))
+    }
     setActiveTab("time")
   }
 
@@ -135,6 +203,10 @@ const ReservationProcess: React.FC<ReservationProcessProps> = (props) => {
   // Booking form handlers
   const handleBookingSuccess = (bookingData: any) => {
     console.log("Booking created successfully:", bookingData)
+    
+    // Trigger invalidation for reservation-related data
+    onReservationChange(props.restaurantId)
+    
     setShowBookingForm(false)
     props.onClick() // Call the original onClick to close the reservation process
   }
@@ -204,7 +276,16 @@ const ReservationProcess: React.FC<ReservationProcessProps> = (props) => {
                 <span className="font-semibold">Select a date</span>
               )}
             </div>
-            <OurCalendar forbidden={true} onClick={handleDateClick} />
+            {isLoadingAvailability && props.restaurantId && (
+              <div className="text-center py-4">
+                <div className="text-greytheme dark:text-textdarktheme">Loading restaurant availability...</div>
+              </div>
+            )}
+            <OurCalendar 
+              forbidden={true} 
+              onClick={handleDateClick} 
+              isDateAvailable={isDateAvailable}
+            />
           </div>
         )}
         {activeTab === "time" && (
@@ -218,6 +299,21 @@ const ReservationProcess: React.FC<ReservationProcessProps> = (props) => {
                 <span className="font-semibold">Select a time</span>
               )}
             </div>
+            {isLoadingAvailability && (
+              <div className="text-center py-4">
+                <div className="text-greytheme dark:text-textdarktheme">Loading available times...</div>
+              </div>
+            )}
+            {!isLoadingAvailability && props.restaurantId && selectedDate && getAvailableTimeSlotsForDate(selectedDate).length === 0 && (
+              <div className="text-center py-8">
+                <div className="text-greytheme dark:text-textdarktheme mb-2">
+                  Restaurant is closed on {format(selectedDate, "MMMM dd, yyyy")}
+                </div>
+                <div className="text-sm text-greytheme dark:text-textdarktheme">
+                  Please try selecting a different date.
+                </div>
+              </div>
+            )}
             <div className="flex flex-wrap h-[284px] overflow-y-auto justify-center gap-[10px] p-[20px] rounded-[3px]">
               {[...Array(48)].map((_, index) => {
                 const hour = Math.floor(index / 2)
@@ -228,18 +324,31 @@ const ReservationProcess: React.FC<ReservationProcessProps> = (props) => {
                 const isPastTime =
                   isToday &&
                   (hour < now.getHours() || (hour === now.getHours() && minute === "00" && now.getMinutes() >= 30))
+                
+                // Check if this time slot is available from restaurant opening hours
+                const availableSlots = selectedDate ? getAvailableTimeSlotsForDate(selectedDate) : []
+                const isAvailable = props.restaurantId ? availableSlots.includes(timeString) : true
+                const isDisabled = isPastTime || (props.restaurantId && !isAvailable && !isLoadingAvailability)
+                
                 return (
                   <button
-                    onClick={() => !isPastTime && handleTimeClick(timeString)}
-                    className={`text-15 ${
-                      isPastTime
-                        ? "bg-softwhitetheme text-subblack cursor-not-allowed"
-                        : "hover:bg-greentheme hover:text-white"
-                    } font-bold h-[65px] w-[65px] flex items-center justify-center border-solid border-[1px] border-greentheme text-blacktheme dark:text-white ${
-                      selectedTime === timeString ? "bg-greentheme text-white" : ""
+                    onClick={() => !isDisabled && handleTimeClick(timeString)}
+                    className={`text-15 font-bold h-[65px] w-[65px] flex items-center justify-center border-solid border-[1px] text-blacktheme dark:text-white ${
+                      isDisabled
+                        ? "bg-softgreytheme text-greytheme cursor-not-allowed border-greytheme dark:bg-darkthemeitems dark:text-greytheme"
+                        : selectedTime === timeString
+                        ? "bg-greentheme text-white border-greentheme"
+                        : "border-greentheme hover:bg-greentheme hover:text-white"
                     }`}
                     key={index}
-                    disabled={!!isPastTime}
+                    disabled={!!isDisabled}
+                    title={
+                      isPastTime 
+                        ? "Time has passed" 
+                        : !isAvailable && props.restaurantId 
+                        ? "Restaurant is closed at this time" 
+                        : ""
+                    }
                   >
                     {timeString}
                   </button>

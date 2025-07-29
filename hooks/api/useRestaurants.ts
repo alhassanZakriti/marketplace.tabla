@@ -1,7 +1,8 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { restaurantDataProvider, type Restaurant, type RestaurantAPIResponse, type RestaurantFavorite, type SearchParams } from '@/lib/dataProvider'
+import { restaurantDataProvider, type Restaurant, type RestaurantAPIResponse, type RestaurantFavorite, type SearchParams, type AvailabilityCheckRequest, type AvailabilityCheckResponse } from '@/lib/dataProvider'
+import { useQueryInvalidator } from './invalidationUtils'
 
 // Query keys for restaurants
 export const restaurantKeys = {
@@ -15,6 +16,8 @@ export const restaurantKeys = {
   reviews: (id: string | number) => [...restaurantKeys.detail(id), 'reviews'] as const,
   gallery: (id: string | number) => [...restaurantKeys.detail(id), 'gallery'] as const,
   availability: (id: string | number) => [...restaurantKeys.detail(id), 'availability'] as const,
+  availabilityCheck: (id: string | number, date: string, partySize: number) => 
+    [...restaurantKeys.detail(id), 'availability-check', date, partySize] as const,
   services: (id: string | number) => [...restaurantKeys.detail(id), 'services'] as const,
 }
 
@@ -108,6 +111,21 @@ export const useRestaurantAvailability = (id: string | number, enabled = true) =
   })
 }
 
+// Check restaurant availability for specific dates and party size
+export const useRestaurantAvailabilityCheck = (
+  id: string | number, 
+  date: string, 
+  partySize: number, 
+  enabled = true
+) => {
+  return useQuery({
+    queryKey: restaurantKeys.availabilityCheck(id, date, partySize),
+    queryFn: () => restaurantDataProvider.checkRestaurantAvailability(id, { date, party_size: partySize }),
+    enabled: enabled && !!id && !!date && partySize > 0,
+    staleTime: 2 * 60 * 1000, // Shorter stale time for availability checks
+  })
+}
+
 // Get restaurant services
 export const useRestaurantServices = (id: string | number, enabled = true) => {
   return useQuery({
@@ -121,29 +139,30 @@ export const useRestaurantServices = (id: string | number, enabled = true) => {
 // Like restaurant mutation
 export const useLikeRestaurant = () => {
   const queryClient = useQueryClient()
+  const invalidator = useQueryInvalidator()
   
   return useMutation({
     mutationFn: (id: string | number) => restaurantDataProvider.likeRestaurant(id),
-    onSuccess: (data, variables) => {
-      // Update restaurant data in cache
-      queryClient.setQueryData(
+    onMutate: async (variables) => {
+      // Optimistic update
+      const rollback = await invalidator.optimisticUpdate<Restaurant>(
         restaurantKeys.detail(variables),
-        (oldData: Restaurant | undefined) => {
-          if (oldData) {
-            return {
-              ...oldData,
-              is_liked: true,
-            }
-          }
-          return oldData
-        }
+        (oldData) => oldData ? { ...oldData, is_liked: true } : oldData
       )
-      
-      // Invalidate related queries to ensure data consistency
-      queryClient.invalidateQueries({ queryKey: restaurantKeys.detail(variables) })
-      queryClient.invalidateQueries({ queryKey: restaurantKeys.lists() })
+      return { rollback }
     },
-    onError: (error) => {
+    onSuccess: (data, variables) => {
+      // Invalidate related queries to ensure data consistency across the app
+      invalidator.invalidateRestaurant(variables)
+      invalidator.invalidateRestaurants()
+      invalidator.invalidateLikedRestaurants()
+      invalidator.invalidateSearchResults()
+    },
+    onError: (error, variables, context) => {
+      // Rollback optimistic update
+      if (context?.rollback) {
+        context.rollback()
+      }
       console.error('Failed to like restaurant:', error)
     }
   })
@@ -152,30 +171,30 @@ export const useLikeRestaurant = () => {
 // Unlike restaurant mutation
 export const useUnlikeRestaurant = () => {
   const queryClient = useQueryClient()
+  const invalidator = useQueryInvalidator()
   
   return useMutation({
     mutationFn: (id: string | number) => restaurantDataProvider.unlikeRestaurant(id),
-    onSuccess: (data, variables) => {
-      // Update restaurant data in cache
-      queryClient.setQueryData(
+    onMutate: async (variables) => {
+      // Optimistic update
+      const rollback = await invalidator.optimisticUpdate<Restaurant>(
         restaurantKeys.detail(variables),
-        (oldData: Restaurant | undefined) => {
-          if (oldData) {
-            return {
-              ...oldData,
-              is_liked: false,
-            }
-          }
-          return oldData
-        }
+        (oldData) => oldData ? { ...oldData, is_liked: false } : oldData
       )
-      
-      // Invalidate related queries to ensure data consistency
-      queryClient.invalidateQueries({ queryKey: restaurantKeys.detail(variables) })
-      queryClient.invalidateQueries({ queryKey: restaurantKeys.lists() })
-      queryClient.invalidateQueries({ queryKey: restaurantKeys.liked() })
+      return { rollback }
     },
-    onError: (error) => {
+    onSuccess: (data, variables) => {
+      // Invalidate related queries to ensure data consistency across the app
+      invalidator.invalidateRestaurant(variables)
+      invalidator.invalidateRestaurants()
+      invalidator.invalidateLikedRestaurants()
+      invalidator.invalidateSearchResults()
+    },
+    onError: (error, variables, context) => {
+      // Rollback optimistic update
+      if (context?.rollback) {
+        context.rollback()
+      }
       console.error('Failed to unlike restaurant:', error)
     }
   })
@@ -201,41 +220,69 @@ export const useLikedRestaurants = () => {
 // Remove restaurant from liked/favorites
 export const useRemoveLikedRestaurant = () => {
   const queryClient = useQueryClient()
+  const invalidator = useQueryInvalidator()
   
   return useMutation({
     mutationFn: (id: string | number) => restaurantDataProvider.removeLikedRestaurant(id),
-    onSuccess: (data, variables) => {
-      // Remove restaurant from liked restaurants cache
-      queryClient.setQueryData(
+    onMutate: async (variables) => {
+      // Optimistic updates for multiple queries
+      const likedRollback = await invalidator.optimisticUpdate<RestaurantFavorite[]>(
         restaurantKeys.liked(),
-        (oldData: RestaurantFavorite[] | undefined) => {
-          if (oldData) {
-            return oldData.filter(restaurant => restaurant.id !== variables)
-          }
-          return oldData
-        }
+        (oldData) => oldData ? oldData.filter(restaurant => restaurant.id !== variables) : oldData
       )
       
-      // Update restaurant detail if it exists in cache
-      queryClient.setQueryData(
+      const detailRollback = await invalidator.optimisticUpdate<Restaurant>(
         restaurantKeys.detail(variables),
-        (oldData: Restaurant | undefined) => {
-          if (oldData) {
-            return {
-              ...oldData,
-              is_liked: false,
-            }
-          }
-          return oldData
-        }
+        (oldData) => oldData ? { ...oldData, is_liked: false } : oldData
       )
       
-      // Invalidate related queries
-      queryClient.invalidateQueries({ queryKey: restaurantKeys.liked() })
-      queryClient.invalidateQueries({ queryKey: restaurantKeys.lists() })
+      return { likedRollback, detailRollback }
     },
-    onError: (error) => {
+    onSuccess: (data, variables) => {
+      // Comprehensive invalidation to ensure data consistency
+      invalidator.invalidateRestaurant(variables)
+      invalidator.invalidateRestaurants()
+      invalidator.invalidateLikedRestaurants()
+      invalidator.invalidateSearchResults()
+    },
+    onError: (error, variables, context) => {
+      // Rollback all optimistic updates
+      if (context?.likedRollback) {
+        context.likedRollback()
+      }
+      if (context?.detailRollback) {
+        context.detailRollback()
+      }
       console.error('Failed to remove restaurant from favorites:', error)
+    }
+  })
+}
+
+// Create restaurant review mutation
+export const useCreateRestaurantReview = () => {
+  const queryClient = useQueryClient()
+  const invalidator = useQueryInvalidator()
+  
+  return useMutation({
+    mutationFn: ({ restaurantId, reviewData }: { restaurantId: string | number, reviewData: FormData }) => 
+      restaurantDataProvider.createRestaurantReview(restaurantId, reviewData),
+    onSuccess: (data, variables) => {
+      console.log('✅ Review created successfully:', data)
+      
+      // Invalidate restaurant-related queries (reviews, menu, gallery, etc.)
+      invalidator.invalidateRestaurantRelated(variables.restaurantId)
+      
+      // Invalidate restaurant details (might affect rating)
+      invalidator.invalidateRestaurant(variables.restaurantId)
+      
+      // Invalidate user reviews to show in profile
+      invalidator.invalidateUserRelatedData()
+      
+      // Invalidate restaurant lists in case the new review affects ratings/rankings
+      invalidator.invalidateRestaurants()
+    },
+    onError: (error, variables) => {
+      console.error('❌ Failed to create review:', error)
     }
   })
 }

@@ -17,7 +17,11 @@ import { ChevronLeft, ChevronRight } from "lucide-react" // Import Lucide icons
 
 const colStartClasses = ["", "col-start-2", "col-start-3", "col-start-4", "col-start-5", "col-start-6", "col-start-7"]
 
-const OurCalendar = (props: { onClick?: (day: Date) => void; forbidden?: boolean }) => {
+const OurCalendar = (props: { 
+  onClick?: (day: Date) => void; 
+  forbidden?: boolean; 
+  isDateAvailable?: (date: Date) => boolean 
+}) => {
   const today = startOfToday()
   function classNames(...classes: (string | boolean | undefined | null)[]) {
     return classes.filter(Boolean).join(" ")
@@ -82,39 +86,54 @@ const OurCalendar = (props: { onClick?: (day: Date) => void; forbidden?: boolean
           ))}
         </div>
         <div className="mx-auto grid grid-cols-7 justify-around">
-          {days.map((day, dayIdx) => (
-            <div key={day.toString()} className={classNames(dayIdx === 0 && colStartClasses[getDay(day)], "py-1.5")}>
-              <button
-                type="button"
-                onClick={() => selectingDate(day)}
-                disabled={props.forbidden && day < today}
-                className={classNames(
-                  isEqual(day, selectedDay) && "text-whitetheme", // Selected day text color
-                  !isEqual(day, selectedDay) && isToday(day) && "text-greentheme font-bold", // Today, not selected
-                  !isEqual(day, selectedDay) &&
-                    !isToday(day) &&
-                    isSameMonth(day, firstDayCurrentMonth) &&
-                    "text-blacktheme dark:text-textdarktheme", // Same month, not selected/today
-                  !isEqual(day, selectedDay) &&
-                    !isToday(day) &&
-                    !isSameMonth(day, firstDayCurrentMonth) &&
-                    "text-greytheme", // Different month
-                  isEqual(day, selectedDay) && isToday(day) && "bg-greentheme font-bold", // Selected and today background
-                  isEqual(day, selectedDay) && !isToday(day) && "bg-blacktheme font-bold", // Selected but not today background
-                  !isEqual(day, selectedDay) && "hover:bg-softgreentheme dark:hover:bg-greentheme/20", // Hover effect
-                  (isEqual(day, selectedDay) || isToday(day)) && "font-semibold", // Font weight for selected or today
-                  "mx-auto flex h-8 w-8 items-center justify-center rounded-full", // Base styles
-                )}
-              >
-                <time
-                  dateTime={format(day, "yyyy-MM-dd")}
-                  className={props.forbidden && day < today ? "opacity-20" : ""}
+          {days.map((day, dayIdx) => {
+            const isPastDate = props.forbidden && day < today
+            const isDateUnavailable = props.isDateAvailable && !props.isDateAvailable(day)
+            const isDisabled = isPastDate || isDateUnavailable
+            
+            return (
+              <div key={day.toString()} className={classNames(dayIdx === 0 && colStartClasses[getDay(day)], "py-1.5")}>
+                <button
+                  type="button"
+                  onClick={() => !isDisabled && selectingDate(day)}
+                  disabled={isDisabled}
+                  className={classNames(
+                    isEqual(day, selectedDay) && !isDisabled && "text-whitetheme", // Selected day text color
+                    !isEqual(day, selectedDay) && isToday(day) && !isDisabled && "text-greentheme font-bold", // Today, not selected
+                    !isEqual(day, selectedDay) &&
+                      !isToday(day) &&
+                      isSameMonth(day, firstDayCurrentMonth) &&
+                      !isDisabled &&
+                      "text-blacktheme dark:text-textdarktheme", // Same month, not selected/today
+                    !isEqual(day, selectedDay) &&
+                      !isToday(day) &&
+                      !isSameMonth(day, firstDayCurrentMonth) &&
+                      "text-greytheme", // Different month
+                    isEqual(day, selectedDay) && isToday(day) && !isDisabled && "bg-greentheme font-bold", // Selected and today background
+                    isEqual(day, selectedDay) && !isToday(day) && !isDisabled && "bg-blacktheme font-bold", // Selected but not today background
+                    !isEqual(day, selectedDay) && !isDisabled && "hover:bg-softgreentheme dark:hover:bg-greentheme/20", // Hover effect
+                    (isEqual(day, selectedDay) || isToday(day)) && !isDisabled && "font-semibold", // Font weight for selected or today
+                    isDisabled && "opacity-30 cursor-not-allowed", // Disabled styling
+                    "mx-auto flex h-8 w-8 items-center justify-center rounded-full", // Base styles
+                  )}
+                  title={
+                    isPastDate 
+                      ? "Date has passed" 
+                      : isDateUnavailable 
+                      ? "Restaurant is closed on this day" 
+                      : ""
+                  }
                 >
-                  {format(day, "d")}
-                </time>
-              </button>
-            </div>
-          ))}
+                  <time
+                    dateTime={format(day, "yyyy-MM-dd")}
+                    className={isDisabled ? "opacity-50" : ""}
+                  >
+                    {format(day, "d")}
+                  </time>
+                </button>
+              </div>
+            )
+          })}
         </div>
       </div>
     </div>
