@@ -1,23 +1,20 @@
 "use client"
-import {  useState } from "react"
-import { Metadata } from "next";
+import { useState, useEffect } from "react"
 import { ChevronDown } from 'lucide-react'
 import Link from "next/link"
 import { t } from "i18next";
-
-
 
 interface FAQItem {
   question: string
   answer: string
 }
 
-
-
 export default function FAQPage() {
-
-
   const [openItem, setOpenItem] = useState<number | null>(null)
+
+  useEffect(() => {
+    document.title = "FAQ - Tabla | Taste Morocco's Best";
+  }, []);
 
   const toggleItem = (index: number) => {
     setOpenItem(openItem === index ? null : index)

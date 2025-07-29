@@ -2,7 +2,7 @@ import { Metadata } from "next"
 
 export const metadata:Metadata = {
   title: "Terms and Conditions - Tabla | Taste Morocco's Best",
-    description: "Read our terms and conditions for using Tabla, your go-to platform for restaurant bookings in Morocco.",
+  description: "Read our terms and conditions for using Tabla, your go-to platform for restaurant bookings in Morocco. Learn about our policies and user agreement.",
 }
 
 export default function TermsAndConditionsPage() {

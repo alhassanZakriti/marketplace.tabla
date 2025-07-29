@@ -26,6 +26,11 @@ function HomeContent() {
   const { isAuthenticated } = useAuth()
   const [showAuthPopup, setShowAuthPopup] = useState(false)
 
+  // Set page title
+  useEffect(() => {
+    document.title = "Home - Tabla | Taste Morocco's Best";
+  }, []);
+
   // Check for showAuth parameter on mount and when searchParams change
   useEffect(() => {
     const shouldShowAuth = searchParams.get('showAuth') === 'true'

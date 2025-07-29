@@ -1,12 +1,15 @@
 
 "use client"
 
-import { Metadata } from "next";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
 export default function AboutUsPage() {
-
   const {t} = useTranslation();
+
+  useEffect(() => {
+    document.title = "About Us - Tabla | Taste Morocco's Best";
+  }, []);
 
     return (
       <div className="bg-whitetheme dark:bg-bgdarktheme min-h-screen">

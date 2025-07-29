@@ -3,6 +3,7 @@ import { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Privacy Policy - Tabla | Taste Morocco's Best",
+  description: "Learn how Tabla protects your privacy and handles your data. Read our comprehensive privacy policy for restaurant booking services in Morocco.",
 };
 
 export default function PrivacyPolicyPage() {
