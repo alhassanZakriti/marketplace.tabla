@@ -38,7 +38,6 @@ const defaultMapOptions: google.maps.MapOptions = {
   disableDefaultUI: true,
   zoomControl: true,
   mapTypeControl: false,
-  
   streetViewControl: false,
   fullscreenControl: false,
   gestureHandling: "cooperative",
@@ -243,6 +242,7 @@ const MapModal = ({
 
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    region: "MA", // Set region to Morocco for proper territorial display
   })
 
   const restaurantsWithCoordinates = restaurants.filter((restaurant) => getSafeCoordinates(restaurant) !== null)
@@ -372,7 +372,8 @@ const MapModal = ({
             <GoogleMap
               mapContainerStyle={{ width: "100%", height: "100%" }}
               center={{ lat: 33.589886, lng: -7.603869 }}
-              zoom={12}
+              zoom={6}
+              
               options={{
                 ...defaultMapOptions,
                 styles: [
@@ -380,6 +381,7 @@ const MapModal = ({
                   {
                     featureType: "all",
                     elementType: "geometry",
+                    
                     stylers: [{ saturation: -20 }]
                   }
                 ]
@@ -504,7 +506,7 @@ const RestaurantInfoWindow = ({
   }
 
   return (
-    <div className="w-[280px] bg-white w-fit dark:bg-darkthemeitems rounded-lg shadow-xl border-0 overflow-hidden">
+    <div className="w-[280px] bg-white dark:bg-darkthemeitems rounded-lg shadow-xl border-0 overflow-hidden">
       {restaurant.imageUrl && (
         <div className="relative h-32 overflow-hidden">
           <img
@@ -609,6 +611,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
 
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    region: "MA", // Set region to Morocco for proper territorial display
   })
 
   // Check if mobile on mount and window resize
@@ -813,6 +816,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
             zoom={12}
             options={{
               ...defaultMapOptions,
+              
               styles: [
                 ...defaultMapOptions.styles || [],
                 {
