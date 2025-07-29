@@ -22,7 +22,7 @@ const BestInSection = () => {
   }
 
   // Helper function to get safe image URL
-  const getSafeImageUrl = (imageUrl: string | null): string => {
+  const getSafeImageUrl = (imageUrl: string | null | undefined): string => {
     return imageUrl || "/placeholder.svg?height=300&width=400"
   }
 
@@ -66,7 +66,7 @@ const BestInSection = () => {
                   name={restaurant.name}
                   address={restaurant.address}
                   rating={getSafeRating(restaurant.rating)}
-                  category={restaurant.cuisine || t("bestInSection.unknownCategory", "Unknown")}
+                  category={restaurant.category_name || t("bestInSection.unknownCategory", "Unknown")}
                   isOpen={restaurant.status === "Open"}
                   imageUrl={getSafeImageUrl(restaurant.main_image)}
                 />
@@ -167,7 +167,7 @@ const BestInSection = () => {
               name={restaurant.name}
               address={restaurant.address}
               rating={getSafeRating(restaurant.rating)}
-              category={restaurant.cuisine || t("bestInSection.unknownCategory", "Unknown")}
+              category={restaurant.category_name || t("bestInSection.unknownCategory", "Unknown")}
               isOpen={restaurant.status === "Open"}
               imageUrl={getSafeImageUrl(restaurant.main_image)}
             />

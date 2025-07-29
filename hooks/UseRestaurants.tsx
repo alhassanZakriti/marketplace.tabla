@@ -152,3 +152,29 @@ export function useRestaurantSearch() {
     clearSearch,
   }
 }
+
+// Hook for fetching liked restaurants
+export function useLikedRestaurants() {
+  const [data, setData] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
+
+  useEffect(() => {
+    const fetchLikedRestaurants = async () => {
+      try {
+        setIsLoading(true)
+        setError(null)
+        const result = await restaurantDataProvider.getLikedRestaurants()
+        setData(result)
+      } catch (err) {
+        setError(err as Error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchLikedRestaurants()
+  }, [])
+
+  return { data, isLoading, error }
+}

@@ -14,7 +14,7 @@ const PopularSection = () => {
   }
 
   // Helper function to get safe image URL
-  const getSafeImageUrl = (imageUrl: string | null): string => {
+  const getSafeImageUrl = (imageUrl: string | null | undefined): string => {
     return imageUrl || "/placeholder.svg?height=300&width=400"
   }
 
@@ -51,7 +51,7 @@ const PopularSection = () => {
                 name={restaurant.name}
                 address={restaurant.address}
                 rating={getSafeRating(restaurant.rating)}
-                category={restaurant.cuisine || t("popularSection.unknownCategory", "Unknown")}
+                category={restaurant.category_name || t("popularSection.unknownCategory", "Unknown")}
                 isOpen={restaurant.status === "Open"}
                 imageUrl={getSafeImageUrl(restaurant.main_image)}
               />
@@ -141,7 +141,7 @@ const PopularSection = () => {
               name={restaurant.name}
               address={restaurant.address}
               rating={getSafeRating(restaurant.rating)}
-              category={restaurant.cuisine || t("popularSection.unknownCategory", "Unknown")}
+              category={restaurant.category_name || t("popularSection.unknownCategory", "Unknown")}
               isOpen={restaurant.status === "Open"}
               imageUrl={getSafeImageUrl(restaurant.main_image)}
             />

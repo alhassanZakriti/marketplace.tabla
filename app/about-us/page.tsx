@@ -1,10 +1,8 @@
 
+"use client"
+
 import { Metadata } from "next";
 import { useTranslation } from "react-i18next";
-
-export const metadata: Metadata = {
-  title: "About Us - Tabla | Taste Morocco's Best",
-};
 
 export default function AboutUsPage() {
 

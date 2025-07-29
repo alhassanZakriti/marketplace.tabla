@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import SearchBar from "../../components/search/SearchBar"
 import SearchBarMobile from "../../components/search/SearchBarMobile"
 import FiltersSection, { type FilterOptions } from "../../components/search/FilterSection"
@@ -13,7 +13,7 @@ import { useCities, useRestaurants } from "@/hooks/api"
 import { MapProvider } from "@/providers/map-provider"
 import { useTranslation } from "react-i18next"
 
-const SearchPage = () => {
+function SearchContent() {
   const { t } = useTranslation()
 
   useEffect(() => {
@@ -300,6 +300,14 @@ const SearchPage = () => {
         </div>
       </div>
     </MapProvider>
+  )
+}
+
+const SearchPage = () => {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <SearchContent />
+    </Suspense>
   )
 }
 

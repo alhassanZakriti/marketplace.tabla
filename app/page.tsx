@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import HomeHero from "../components/home/HomeHero"
 import PopularSection from "../components/home/PopularSection"
@@ -20,7 +20,7 @@ interface Restaurant {
   image: string
 }
 
-const Home = () => {
+function HomeContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { isAuthenticated } = useAuth()
@@ -81,6 +81,14 @@ const Home = () => {
       {/* Join Section */}
       <JoinSection />
     </div>
+  )
+}
+
+const Home = () => {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <HomeContent />
+    </Suspense>
   )
 }
 
