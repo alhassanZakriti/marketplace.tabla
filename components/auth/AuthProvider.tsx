@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import { dataProvider, type User } from "../../lib/dataProvider"
+import { useQueryClient } from "@tanstack/react-query"
 
 interface AuthContextType {
   user: User | null
@@ -31,6 +32,7 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
 
   // Check authentication status on mount
   useEffect(() => {
@@ -79,6 +81,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
           console.error("Failed to fetch user profile:", error)
         }
       }
+
+      // Invalidate all queries to refresh data for authenticated user
+      queryClient.invalidateQueries()
     } finally {
       setLoading(false)
     }
@@ -92,6 +97,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.error("Logout error:", error)
     } finally {
       setUser(null)
+      
+      // Clear all cached data on logout
+      queryClient.clear()
+      
       setLoading(false)
     }
   }

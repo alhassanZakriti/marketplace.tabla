@@ -2,7 +2,6 @@
 
 import type React from "react"
 import { useState, useRef, useEffect } from "react"
-import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { Button } from "../ui/Button"
 import { useCities } from "../../hooks/UseCities"
@@ -82,11 +81,22 @@ const SearchBarMobile = () => {
   const handleCityFocus = () => setIsCityFocused(true)
   const handleCityBlur = () => setIsCityFocused(false)
 
+  // Function to perform search navigation
+  const performSearch = (searchValue: string = searchTerm, cityValue: string | number = selectedCityId || cityTerm) => {
+    const searchUrl = `/search?term=${encodeURIComponent(searchValue)}&city=${encodeURIComponent(String(cityValue))}`
+    window.location.href = searchUrl
+  }
+
   const handleSuggestionClick = (suggestion: string) => {
     setSearchTerm(suggestion)
     setSearchValue(suggestion)
     setIsSearch(false)
     setIsFocused(false)
+    
+    // Automatically perform search when suggestion is selected
+    setTimeout(() => {
+      performSearch(suggestion)
+    }, 100)
   }
 
   const handleCitySuggestionClick = (city: (typeof cities)[0]) => {
@@ -95,6 +105,14 @@ const SearchBarMobile = () => {
     setSelectedCityId(city.id)
     setIsCity(false)
     setIsCityFocused(false)
+    
+    // Automatically open search field after city selection
+    setTimeout(() => {
+      setIsSearch(true)
+      if (searchInputRef.current) {
+        searchInputRef.current.focus()
+      }
+    }, 100)
   }
 
   // Close modals when clicking outside
@@ -159,11 +177,9 @@ const SearchBarMobile = () => {
       </button>
 
       {/* Search Action Button */}
-      <Link href={`/search?city=${selectedCityId || cityValue}&term=${searchTerm}`}>
-        <Button variant="primary" className="w-full">
-          Search
-        </Button>
-      </Link>
+      <Button variant="primary" className="w-full" onClick={() => performSearch()}>
+        Search
+      </Button>
 
       {/* City Modal */}
       {isCity && (

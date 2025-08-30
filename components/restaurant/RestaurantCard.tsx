@@ -17,6 +17,8 @@ interface RestaurantCardProps {
   imageUrl: string
   favorite?: boolean
   onToggleFavorite?: (id: number, isFavorite: boolean) => void
+  isAvailable?: boolean
+  availabilityLoading?: boolean
 }
 
 export default function RestaurantCard({
@@ -29,6 +31,8 @@ export default function RestaurantCard({
   imageUrl,
   favorite = false,
   onToggleFavorite,
+  isAvailable,
+  availabilityLoading,
 }: RestaurantCardProps) {
   const { t } = useTranslation()
   const [isImageLoaded, setIsImageLoaded] = useState(false)
@@ -119,7 +123,8 @@ export default function RestaurantCard({
           </button>
 
           {/* Status Badge */}
-          <div className="absolute right-3 top-3">
+          <div className="absolute right-3 top-3 flex flex-col gap-1">
+            {/* Operating Status */}
             <div
               className={`flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${
                 isOpen ? "bg-greentheme/90 text-white" : "bg-red-500/90 text-white"
@@ -128,6 +133,36 @@ export default function RestaurantCard({
               <Clock className="h-3 w-3" />
               <span>{isOpen ? t("restaurant.status.open", "Open") : t("restaurant.status.closed", "Closed")}</span>
             </div>
+            
+            {/* Availability Status */}
+            {(isAvailable !== undefined || availabilityLoading) && (
+              <div
+                className={`flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${
+                  availabilityLoading 
+                    ? "bg-blue-500/90 text-white" 
+                    : isAvailable 
+                    ? "bg-greentheme/90 text-white" 
+                    : "bg-orange-500/90 text-white"
+                }`}
+              >
+                {availabilityLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-2 w-2 border-b border-white"></div>
+                    <span>{t("restaurant.availability.checking", "Checking...")}</span>
+                  </>
+                ) : (
+                  <>
+                    <Clock className="h-3 w-3" />
+                    <span>
+                      {isAvailable 
+                        ? t("restaurant.availability.available", "Available") 
+                        : t("restaurant.availability.unavailable", "Full")
+                      }
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

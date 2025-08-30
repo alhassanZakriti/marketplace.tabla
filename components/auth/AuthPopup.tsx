@@ -5,6 +5,7 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { X, Eye, EyeOff, Mail, Lock, User, Building } from "lucide-react"
 import { dataProvider, type LoginCredentials, type RegisterData } from "../../lib/dataProvider"
+import { useManualInvalidation } from "@/hooks/api"
 
 interface AuthPopupProps {
   isOpen: boolean
@@ -20,6 +21,9 @@ export default function AuthPopup({ isOpen, onClose, onSuccess, defaultTab = "lo
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+
+  // Data invalidation hook
+  const { refreshEverything, onProfileUpdate } = useManualInvalidation()
 
   // Login form state
   const [loginForm, setLoginForm] = useState<LoginCredentials>({
@@ -77,6 +81,12 @@ export default function AuthPopup({ isOpen, onClose, onSuccess, defaultTab = "lo
     try {
       const response = await dataProvider.auth.login(loginForm)
       setSuccess("Login successful!")
+      
+      // Trigger immediate data refresh after successful login
+      setTimeout(() => {
+        refreshEverything() // This will invalidate and refetch all user-related data
+      }, 100) // Small delay to ensure auth state is updated
+      
       onSuccess(response)
       setTimeout(() => {
         onClose()
@@ -111,6 +121,11 @@ export default function AuthPopup({ isOpen, onClose, onSuccess, defaultTab = "lo
       const response = await dataProvider.auth.register(registerForm)
       setSuccess("Registration successful! Please log in.")
       setActiveTab("login")
+      
+      // Trigger data refresh since a new user account was created
+      setTimeout(() => {
+        refreshEverything()
+      }, 100)
     } catch (err: any) {
       setError(err.message || "Registration failed. Please try again.")
     } finally {
@@ -136,7 +151,7 @@ export default function AuthPopup({ isOpen, onClose, onSuccess, defaultTab = "lo
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center">
+    <div className="fixed inset-0 z-[400] flex items-center justify-center">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-blacktheme/20 backdrop-blur-sm transition-opacity duration-300"

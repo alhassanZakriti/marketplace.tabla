@@ -10,6 +10,7 @@ import { Calendar, Clock, Filter, MapPin, Users } from "lucide-react"
 import ReservationProcess from "../../components/restaurant/ReservationProcess"
 import { useSearchParams } from "next/navigation"
 import { useCities, useRestaurants } from "@/hooks/api"
+import useRestaurantAvailability from "@/hooks/useRestaurantAvailability"
 import { MapProvider } from "@/providers/map-provider"
 import { useTranslation } from "react-i18next"
 
@@ -42,6 +43,18 @@ function SearchContent() {
   const cityParam = searchParams.get("city") || ""
   const searchTermParam = searchParams.get("term") || ""
 
+  // Filter state - needs to be defined before API calls
+  const [filters, setFilters] = useState<FilterOptions>({
+    categories: [],
+    priceRanges: [],
+    distanceMin: null,
+    distanceMax: null,
+    date: null,
+    time: null,
+    partySize: null,
+    ordering: "distance",
+  })
+
   // React Query hooks
   const {
     data: citiesData,
@@ -60,11 +73,30 @@ function SearchContent() {
     term: searchTermParam,
     page: currentPage,
     limit: 10,
+    category: filters.categories.length > 0 ? filters.categories.join(',') : undefined,
+    // Note: price filtering might need to be implemented in the API
+    distance_min: filters.distanceMin || undefined,
+    distance_max: filters.distanceMax || undefined,
+    date: filters.date || undefined,
+    time: filters.time || undefined,
+    party_size: filters.partySize || undefined,
+    ordering: filters.ordering,
   })
+
+  // Availability checking hook
+  const {
+    availabilityData,
+    loading: availabilityLoading,
+    error: availabilityError,
+    checkAvailability,
+    isRestaurantAvailable,
+    refetch: refetchAvailability,
+  } = useRestaurantAvailability()
 
   // Extract data from API responses
   const cities = citiesData?.results || []
-  const restaurants = (restaurantsData?.results || []).map(restaurant => ({
+  const rawRestaurants = restaurantsData?.results || []
+  const restaurants = rawRestaurants.map(restaurant => ({
     ...restaurant,
     distance: restaurant.distance ?? null, // Transform undefined to null
     status: (restaurant.status || "Closed") as "Closed" | "Open", // Ensure status is defined
@@ -100,7 +132,36 @@ function SearchContent() {
   // Refetch restaurants when search params or current page change
   useEffect(() => {
     setCurrentPage(1)
+    // Clear selected restaurant when search parameters change
+    setSelectedRestaurant(null)
   }, [cityParam, searchTermParam])
+
+  // Clear selected restaurant when filters change significantly
+  useEffect(() => {
+    setSelectedRestaurant(null)
+  }, [filters.categories, filters.priceRanges, filters.date, filters.time, filters.partySize])
+
+  // Check availability when filters or restaurant data changes
+  useEffect(() => {
+    // Only check availability if we have valid date, time, and guests
+    if (
+      filters.date && 
+      filters.date !== "----/--/--" && 
+      filters.time && 
+      filters.time !== "--:--" && 
+      filters.partySize && 
+      filters.partySize > 0 &&
+      rawRestaurants.length > 0
+    ) {
+      // Convert date format if needed (assumes filters.date is in a valid format)
+      const availabilityRequest = {
+        date: filters.date,
+        party_size: filters.partySize,
+      }
+      
+      checkAvailability(rawRestaurants, availabilityRequest)
+    }
+  }, [filters.date, filters.time, filters.partySize, rawRestaurants, checkAvailability])
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
@@ -110,12 +171,6 @@ function SearchContent() {
   const handleRestaurantHover = (id: string) => {
     setSelectedRestaurant(id)
   }
-
-  const [filters, setFilters] = useState<FilterOptions>({
-    categories: [],
-    priceRanges: [],
-    distance: null,
-  })
 
   const handleFiltersChange = (newFilters: FilterOptions) => {
     console.log("Filters changed:", newFilters)
@@ -128,37 +183,10 @@ function SearchContent() {
     <MapProvider>
       <div className="bg-softgreytheme dark:bg-bgdarktheme dark:text-white transition-colors duration-200">
         {showReservationProcess && (
-          <ReservationProcess getDateTime={setData} noOffer={true} onClick={() => setShowReservationProcess(false)} />
+          <ReservationProcess getDateTime={setData} onClick={() => setShowReservationProcess(false)} />
         )}
         <div className="container mx-auto px-4 py-6">
           <div className="min-h-screen max-w-[1200px] mx-auto">
-            <div className="bg-whitetheme lg:w-[40vw] mx-auto dark:bg-darkthemeitems rounded-lg mb-3 shadow-sm">
-              <div
-                onClick={() => setShowReservationProcess(true)}
-                className="flex justify-around items-center cursor-pointer p-1 h-[4em] hover:border-softgreentheme border-2 border-[#00000000] hover:bg-softgreytheme dark:hover:bg-bgdarktheme2 rounded-md transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="font-[600] dark:text-white mr-2 text-blacktheme">
-                    <Calendar size={27} className="rounded-[100%] w-8 h-8 btn-secondary p-2 m-0 text-yellowtheme" />
-                  </span>
-                  <span className="font-medium text-blacktheme dark:text-white">
-                    {data.reserveDate || "----/--/--"}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-[600] dark:text-white mr-2 text-blacktheme">
-                    <Clock size={27} className="rounded-[100%] w-8 h-8 btn-secondary p-2 m-0 text-yellowtheme" />
-                  </span>
-                  <span className="font-medium text-blacktheme dark:text-white">{data.time || "--:--"}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-[600] dark:text-white mr-2 text-blacktheme">
-                    <Users size={27} className="rounded-[100%] w-8 h-8 btn-secondary p-2 m-0 text-yellowtheme" />
-                  </span>
-                  <span className="font-medium text-blacktheme dark:text-white">{data.guests || "--"}</span>
-                </div>
-              </div>
-            </div>
 
             {/* Search Bar */}
             <div className="mb-6">
@@ -169,6 +197,42 @@ function SearchContent() {
                 <SearchBarMobile />
               </div>
             </div>
+              
+              <div className="flex sm:flex-row flex-col justify-start items-center ">
+                <div className="bg-whitetheme lg:w-[40vw] w-full sm:mr-10  dark:bg-darkthemeitems rounded-lg mb-3 shadow-sm">
+                  <div
+                    onClick={() => setShowReservationProcess(true)}
+                    className="flex justify-around items-center cursor-pointer p-1 h-[4em] hover:border-softgreentheme border-2 border-[#00000000] hover:bg-softgreytheme dark:hover:bg-bgdarktheme2 rounded-md transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-[600] dark:text-white mr-2 text-blacktheme">
+                        <Calendar size={27} className="rounded-[100%] w-8 h-8 btn-secondary p-2 m-0 text-yellowtheme" />
+                      </span>
+                      <span className="font-medium text-blacktheme dark:text-white">
+                        {data.reserveDate || "----/--/--"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-[600] dark:text-white mr-2 text-blacktheme">
+                        <Clock size={27} className="rounded-[100%] w-8 h-8 btn-secondary p-2 m-0 text-yellowtheme" />
+                      </span>
+                      <span className="font-medium text-blacktheme dark:text-white">{data.time || "--:--"}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-[600] dark:text-white mr-2 text-blacktheme">
+                        <Users size={27} className="rounded-[100%] w-8 h-8 btn-secondary p-2 m-0 text-yellowtheme" />
+                      </span>
+                      <span className="font-medium text-blacktheme dark:text-white">{data.guests || "--"}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center  sm:flex-nowrap flex-wrap justify-start sm:justify-between mb-2 gap-2 overflow-x-scroll no-scrollbar">
+                  <button className="btn-secondary min-w-[10em]">Less than 5Km</button>
+                  <button className="btn-secondary min-w-[10em]">Less than 10Km</button>
+                  <button className="btn-secondary min-w-[10em]">Less than 20Km</button>
+                  <button className="btn-secondary min-w-[10em]">Less than 30Km</button>
+                </div>
+              </div>
 
             {/* Current Location */}
             <div className={`${cityParam ? "justify-between" : "justify-end"} flex`}>
@@ -192,7 +256,7 @@ function SearchContent() {
                   )}
                 </span>
               </div>
-              <button
+              {/* <button
                 className={`flex gap-2 text-[.9rem] items-center ${
                   shownFilters ? "btn-primary p-3 mb-2" : "btn-secondary p-3 mb-2"
                 }`}
@@ -201,11 +265,21 @@ function SearchContent() {
                 }}
               >
                 {t("search.filters.title")} <Filter size={14} />
-              </button>
+              </button> */}
             </div>
+            
 
             {/* Filters */}
-            {shownFilters && <FiltersSection onFiltersChange={handleFiltersChange} />}
+            {shownFilters && (
+              <FiltersSection 
+                onFiltersChange={handleFiltersChange} 
+                availabilityData={{
+                  date: data.reserveDate !== "----/--/--" ? data.reserveDate : "",
+                  time: data.time !== "--:--" ? data.time : "",
+                  guests: data.guests > 0 ? data.guests : 0
+                }}
+              />
+            )}
 
             {/* Loading State */}
             {restaurantsLoading && (
@@ -270,7 +344,11 @@ function SearchContent() {
                       <RestaurantList
                         restaurants={restaurants}
                         onHover={handleRestaurantHover}
+                        selectedRestaurantId={selectedRestaurant}
                         filtersChosen={filters}
+                        availabilityData={availabilityData}
+                        availabilityLoading={availabilityLoading}
+                        isRestaurantAvailable={isRestaurantAvailable}
                       />
                       {/* Pagination */}
                       {totalPages > 1 && (
@@ -286,7 +364,7 @@ function SearchContent() {
                   )}
                 </div>
                 {/* Map - Button on mobile, embedded sticky map on desktop */}
-                <div className="w-full lg:w-1/3">
+                <div className="w-full lg:w-2/3">
                   <MapComponent 
                     restaurants={restaurants} 
                     selectedRestaurantId={selectedRestaurant}

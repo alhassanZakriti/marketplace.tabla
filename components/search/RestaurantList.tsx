@@ -25,16 +25,33 @@ interface Restaurant {
 export interface FilterOptions {
   categories: string[]
   priceRanges: string[]
-  distance: string | null
+  distanceMin: number | null
+  distanceMax: number | null
+  date: string | null
+  time: string | null
+  partySize: number | null
+  ordering: string
 }
 
 interface RestaurantListProps {
   restaurants: Restaurant[]
   onHover: (id: string) => void
+  selectedRestaurantId?: string | null
   filtersChosen: FilterOptions
+  availabilityData?: Record<string, any>
+  availabilityLoading?: boolean
+  isRestaurantAvailable?: (restaurantId: string | number, time?: string) => boolean
 }
 
-const RestaurantList: React.FC<RestaurantListProps> = ({ restaurants, filtersChosen, onHover }) => {
+const RestaurantList: React.FC<RestaurantListProps> = ({ 
+  restaurants, 
+  filtersChosen, 
+  onHover,
+  selectedRestaurantId,
+  availabilityData,
+  availabilityLoading,
+  isRestaurantAvailable
+}) => {
   const { t } = useTranslation()
 
   // Helper functions for safe data access
@@ -78,16 +95,27 @@ const RestaurantList: React.FC<RestaurantListProps> = ({ restaurants, filtersCho
     const matchesPriceRange =
       filtersChosen.priceRanges.length === 0 || filtersChosen.priceRanges.includes(restaurantPriceRange)
 
-    // Distance filter - convert string filter to number for comparison
+    // Distance filter - check if restaurant distance is within specified range
     let matchesDistance = true
-    if (filtersChosen.distance && restaurant.distance !== null) {
-      const maxDistance = Number.parseFloat(filtersChosen.distance)
-      if (!isNaN(maxDistance)) {
-        matchesDistance = restaurant.distance <= maxDistance
+    if ((filtersChosen.distanceMin !== null || filtersChosen.distanceMax !== null) && restaurant.distance !== null) {
+      if (filtersChosen.distanceMin !== null && restaurant.distance < filtersChosen.distanceMin) {
+        matchesDistance = false
+      }
+      if (filtersChosen.distanceMax !== null && restaurant.distance > filtersChosen.distanceMax) {
+        matchesDistance = false
       }
     }
 
-    return matchesCategory && matchesPriceRange && matchesDistance
+    // Availability filter - check if restaurant is available for selected date/time
+    let matchesAvailability = true
+    if (filtersChosen.date && filtersChosen.time && filtersChosen.partySize && isRestaurantAvailable) {
+      // Only filter by availability if we have all the required data and it's not loading
+      if (!availabilityLoading) {
+        matchesAvailability = isRestaurantAvailable(restaurant.id, filtersChosen.time)
+      }
+    }
+
+    return matchesCategory && matchesPriceRange && matchesDistance && matchesAvailability
   })
 
   // Handle empty state
@@ -115,13 +143,17 @@ const RestaurantList: React.FC<RestaurantListProps> = ({ restaurants, filtersCho
         const category = getSafeCategory(restaurant.category)
         const priceRange = getSafePriceRange(restaurant.priceRange)
         const isOpen = getIsOpen(restaurant.status, restaurant.isOpen)
+        const isSelected = selectedRestaurantId === String(restaurant.id)
 
         return (
           <div
             key={restaurant.id}
-            className="bg-whitetheme group dark:bg-darkthemeitems rounded-xl shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md dark:hover:shadow-[0_4px_6px_-1px_rgba(255,255,255,0.05)]"
+            className={`bg-whitetheme group dark:bg-darkthemeitems rounded-xl shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md dark:hover:shadow-[0_4px_6px_-1px_rgba(255,255,255,0.05)] ${
+              isSelected 
+                ? 'ring-2 ring-greentheme ring-opacity-70 shadow-lg border border-greentheme/20' 
+                : ''
+            }`}
             onMouseEnter={() => onHover(String(restaurant.id))}
-            onMouseLeave={() => onHover("")}
           >
             <Link href={`/restaurant/${restaurant.id}`} target="_blank" className="flex flex-col sm:flex-row">
               {/* Restaurant Image */}
@@ -169,11 +201,42 @@ const RestaurantList: React.FC<RestaurantListProps> = ({ restaurants, filtersCho
                   </div>
                 </div>
                 <div className="flex justify-between items-center mt-2">
-                  <div className="flex items-center">
-                    <Clock size={16} className={isOpen ? "text-greentheme" : "text-redtheme"} />
-                    <span className={`ml-1 text-sm ${isOpen ? "text-greentheme" : "text-redtheme"}`}>
-                      {isOpen ? t("search.restaurantList.openNow") : t("search.restaurantList.closed")}
-                    </span>
+                  <div className="flex items-center gap-3">
+                    {/* Operating Status */}
+                    <div className="flex items-center">
+                      <Clock size={16} className={isOpen ? "text-greentheme" : "text-redtheme"} />
+                      <span className={`ml-1 text-sm ${isOpen ? "text-greentheme" : "text-redtheme"}`}>
+                        {isOpen ? t("search.restaurantList.openNow") : t("search.restaurantList.closed")}
+                      </span>
+                    </div>
+                    
+                    {/* Availability Status */}
+                    {(isRestaurantAvailable && (filtersChosen.date && filtersChosen.time && filtersChosen.partySize)) && (
+                      <div className="flex items-center">
+                        {availabilityLoading ? (
+                          <>
+                            <div className="animate-spin rounded-full h-3 w-3 border-b border-blue-500 mr-1"></div>
+                            <span className="text-xs text-blue-500">
+                              {t("search.restaurantList.checkingAvailability", "Checking...")}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <div className={`w-2 h-2 rounded-full mr-1 ${
+                              isRestaurantAvailable(restaurant.id, filtersChosen.time) ? "bg-greentheme" : "bg-orange-500"
+                            }`}></div>
+                            <span className={`text-xs ${
+                              isRestaurantAvailable(restaurant.id, filtersChosen.time) ? "text-greentheme" : "text-orange-500"
+                            }`}>
+                              {isRestaurantAvailable(restaurant.id, filtersChosen.time) 
+                                ? t("search.restaurantList.available", "Available") 
+                                : t("search.restaurantList.full", "Full")
+                              }
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <button className="btn-primary text-sm py-1.5 px-3">
                     {t("search.restaurantList.bookNow")}

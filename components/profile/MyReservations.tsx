@@ -209,22 +209,24 @@ export const MyReservations: React.FC = () => {
   }
 
   const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "pending":
-        return "bg-softbluetheme text-bluetheme dark:bg-bluetheme dark:text-whitetheme"
-      case "confirmed":
-      case "approved": // Handle both CONFIRMED and APPROVED status
-        return "bg-softgreentheme text-greentheme dark:bg-greentheme dark:text-whitetheme"
-      case "cancelled":
-        return "bg-softredtheme text-redtheme dark:bg-redtheme dark:text-whitetheme"
-      case "no_show":
-        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100"
-      case "seated":
-        return "bg-softpurpletheme text-purpletheme dark:bg-purpletheme dark:text-whitetheme"
-      case "fulfilled":
-        return "bg-emerald-100 text-emerald-800 dark:bg-emerald-800 dark:text-emerald-100"
-      default:
-        return "bg-softgreytheme text-greytheme dark:bg-greytheme dark:text-whitetheme"
+    if(status){
+      switch (status.toLowerCase()) {
+        case "pending":
+          return "bg-softbluetheme text-bluetheme dark:bg-bluetheme dark:text-whitetheme"
+        case "confirmed":
+        case "approved": // Handle both CONFIRMED and APPROVED status
+          return "bg-softgreentheme text-greentheme dark:bg-greentheme dark:text-whitetheme"
+        case "cancelled":
+          return "bg-softredtheme text-redtheme dark:bg-redtheme dark:text-whitetheme"
+        case "no_show":
+          return "bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100"
+        case "seated":
+          return "bg-softpurpletheme text-purpletheme dark:bg-purpletheme dark:text-whitetheme"
+        case "fulfilled":
+          return "bg-emerald-100 text-emerald-800 dark:bg-emerald-800 dark:text-emerald-100"
+        default:
+          return "bg-softgreytheme text-greytheme dark:bg-greytheme dark:text-whitetheme"
+      }
     }
   }
 

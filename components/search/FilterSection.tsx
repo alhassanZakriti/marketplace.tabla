@@ -1,29 +1,55 @@
 "use client"
 import type React from "react"
 import { useState, useEffect } from "react"
-import { ChevronDown, X } from "lucide-react"
+import { ChevronDown, X, MapPin, Calendar, Clock, Users } from "lucide-react"
 import { useTranslation } from "react-i18next"
+import useGeolocation from "@/hooks/useGeolocation"
 
 export interface FilterOptions {
   categories: string[]
   priceRanges: string[]
-  distance: string | null
+  distanceMin: number | null
+  distanceMax: number | null
+  date: string | null
+  time: string | null
+  partySize: number | null
+  ordering: string
 }
 
 interface FiltersSectionProps {
   onFiltersChange: (filters: FilterOptions) => void
   className?: string
+  availabilityData?: {
+    date: string
+    time: string
+    guests: number
+  }
 }
 
-const FiltersSection: React.FC<FiltersSectionProps> = ({ onFiltersChange, className = "" }) => {
+const FiltersSection: React.FC<FiltersSectionProps> = ({ 
+  onFiltersChange, 
+  className = "",
+  availabilityData 
+}) => {
   const { t } = useTranslation()
   const [activeFilters, setActiveFilters] = useState<string[]>([])
   const [showAllCategories, setShowAllCategories] = useState(false)
-  const [selectedDistance, setSelectedDistance] = useState<string | null>(null)
+  const [distanceMin, setDistanceMin] = useState<number | null>(null)
+  const [distanceMax, setDistanceMax] = useState<number | null>(null)
+  const [ordering, setOrdering] = useState<string>("distance")
+
+  // Get user location for distance-based filtering
+  const { coords } = useGeolocation({
+    enableHighAccuracy: true,
+    timeout: 15000,
+    maximumAge: 300000,
+    autoRequest: true,
+    storageKey: "tabla_user_location"
+  })
 
   const categories = [
     "Italian",
-    "Japanese",
+    "Japanese", 
     "Mexican",
     "Chinese",
     "American",
@@ -32,24 +58,26 @@ const FiltersSection: React.FC<FiltersSectionProps> = ({ onFiltersChange, classN
     "Mediterranean",
     "French",
     "Vegetarian",
+    "Moroccan",
+    "Arabic",
+    "European",
+    "Asian",
+    "Seafood",
+    "Steakhouse"
   ]
 
   const priceRanges = ["$", "$$", "$$$", "$$$$"]
 
-  const distanceOptions = [
-    { value: "Less than 1 Km", label: t("search.filters.distance.lessThan1Km") },
-    { value: "1-3 Km", label: t("search.filters.distance.oneToThreeKm") },
-    { value: "3-5 Km", label: t("search.filters.distance.threeToFiveKm") },
-    { value: "5+ Km", label: t("search.filters.distance.moreThanFiveKm") },
+  const orderingOptions = [
+    { value: "distance", label: t("search.filters.ordering.distance", "Distance") },
+    { value: "rating", label: t("search.filters.ordering.rating", "Rating") },
+    { value: "price_asc", label: t("search.filters.ordering.priceLowToHigh", "Price: Low to High") },
+    { value: "price_desc", label: t("search.filters.ordering.priceHighToLow", "Price: High to Low") },
+    { value: "name", label: t("search.filters.ordering.name", "Name") },
   ]
 
   const getCategoryLabel = (category: string) => {
     return t(`search.filters.categories.${category.toLowerCase()}`, { defaultValue: category })
-  }
-
-  const getDistanceLabel = (distance: string) => {
-    const option = distanceOptions.find((opt) => opt.value === distance)
-    return option ? option.label : distance
   }
 
   const displayedCategories = showAllCategories ? categories : categories.slice(0, 6)
@@ -61,10 +89,15 @@ const FiltersSection: React.FC<FiltersSectionProps> = ({ onFiltersChange, classN
     const filters: FilterOptions = {
       categories: categoryFilters,
       priceRanges: priceFilters,
-      distance: selectedDistance,
+      distanceMin,
+      distanceMax,
+      date: availabilityData?.date || null,
+      time: availabilityData?.time || null,
+      partySize: availabilityData?.guests || null,
+      ordering,
     }
     onFiltersChange(filters)
-  }, [activeFilters, selectedDistance, categories, priceRanges, onFiltersChange])
+  }, [activeFilters, distanceMin, distanceMax, ordering, availabilityData, categories, priceRanges, onFiltersChange])
 
   const toggleFilter = (filter: string) => {
     if (activeFilters.includes(filter)) {
@@ -76,18 +109,45 @@ const FiltersSection: React.FC<FiltersSectionProps> = ({ onFiltersChange, classN
 
   const clearFilters = () => {
     setActiveFilters([])
-    setSelectedDistance(null)
+    setDistanceMin(null)
+    setDistanceMax(null)
+    setOrdering("distance")
   }
 
-  const handleDistanceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleDistanceMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
-    setSelectedDistance(value === t("search.filters.selectDistance") ? null : value)
+    setDistanceMin(value ? parseFloat(value) : null)
+  }
+
+  const handleDistanceMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setDistanceMax(value ? parseFloat(value) : null)
+  }
+
+  const handleOrderingChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setOrdering(e.target.value)
   }
 
   // Get all active filters for display
   const getAllActiveFilters = () => {
     const filters = [...activeFilters]
-    if (selectedDistance) filters.push(selectedDistance)
+    if (distanceMin !== null || distanceMax !== null) {
+      const distanceLabel = distanceMin !== null && distanceMax !== null 
+        ? `${distanceMin}-${distanceMax} km`
+        : distanceMin !== null 
+        ? `>${distanceMin} km`
+        : `<${distanceMax} km`
+      filters.push(distanceLabel)
+    }
+    if (availabilityData?.date) {
+      filters.push(`${availabilityData.date}`)
+    }
+    if (availabilityData?.time) {
+      filters.push(`${availabilityData.time}`)
+    }
+    if (availabilityData?.guests) {
+      filters.push(`${availabilityData.guests} guests`)
+    }
     return filters
   }
 
@@ -114,20 +174,19 @@ const FiltersSection: React.FC<FiltersSectionProps> = ({ onFiltersChange, classN
       {/* Active Filters */}
       {allActiveFilters.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-4">
-          {allActiveFilters.map((filter) => (
+          {allActiveFilters.map((filter, index) => (
             <div
-              key={filter}
+              key={`${filter}-${index}`}
               className="bg-greentheme dark:bg-greentheme text-whitetheme px-3 py-1 rounded-full text-sm flex items-center"
             >
-              {categories.includes(filter)
-                ? getCategoryLabel(filter)
-                : distanceOptions.some((opt) => opt.value === filter)
-                  ? getDistanceLabel(filter)
-                  : filter}
+              {categories.includes(filter) ? getCategoryLabel(filter) : filter}
               <button
                 onClick={() => {
-                  if (distanceOptions.some((opt) => opt.value === filter)) {
-                    setSelectedDistance(null)
+                  if (filter.includes('km')) {
+                    setDistanceMin(null)
+                    setDistanceMax(null)
+                  } else if (filter.includes('guests') || filter.includes('-') || filter.includes(':')) {
+                    // These are availability filters, can't be individually removed
                   } else {
                     toggleFilter(filter)
                   }
@@ -142,8 +201,38 @@ const FiltersSection: React.FC<FiltersSectionProps> = ({ onFiltersChange, classN
         </div>
       )}
 
+      {/* Availability Display */}
+      {(availabilityData?.date || availabilityData?.time || availabilityData?.guests) && (
+        <div className="mb-4 p-3 bg-softgreytheme dark:bg-bgdarktheme2 rounded-lg">
+          <h4 className="font-medium text-blacktheme dark:text-textdarktheme mb-2 flex items-center">
+            <Calendar className="w-4 h-4 mr-2" />
+            {t("search.filters.availability", "Availability")}
+          </h4>
+          <div className="flex flex-wrap gap-4 text-sm text-greytheme dark:text-textdarktheme/70">
+            {availabilityData.date && (
+              <div className="flex items-center">
+                <Calendar className="w-4 h-4 mr-1" />
+                {availabilityData.date}
+              </div>
+            )}
+            {availabilityData.time && (
+              <div className="flex items-center">
+                <Clock className="w-4 h-4 mr-1" />
+                {availabilityData.time}
+              </div>
+            )}
+            {availabilityData.guests && (
+              <div className="flex items-center">
+                <Users className="w-4 h-4 mr-1" />
+                {availabilityData.guests} {t("common.guests", "guests")}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Filter Groups */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Categories */}
         <div>
           <h4 className="font-medium text-blacktheme dark:text-textdarktheme mb-2">
@@ -199,27 +288,58 @@ const FiltersSection: React.FC<FiltersSectionProps> = ({ onFiltersChange, classN
 
         {/* Distance */}
         <div>
-          <h4 className="font-medium text-blacktheme dark:text-textdarktheme mb-2">
-            {t("search.filters.distance.title")}
+          <h4 className="font-medium text-blacktheme dark:text-textdarktheme mb-2 flex items-center">
+            <MapPin className="w-4 h-4 mr-1" />
+            {t("search.filters.distance.title", "Distance")}
           </h4>
-          <div className="relative">
-            <select
-              value={selectedDistance || t("search.filters.selectDistance")}
-              onChange={handleDistanceChange}
-              className="w-full p-2 bg-softgreytheme dark:bg-bgdarktheme2 rounded-lg border-0 text-greytheme dark:text-textdarktheme/70 appearance-none pr-8"
-            >
-              <option disabled>{t("search.filters.selectDistance")}</option>
-              {distanceOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown
-              size={16}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-greytheme dark:text-textdarktheme/50 pointer-events-none"
-            />
-          </div>
+          {coords ? (
+            <div className="space-y-2">
+              <div className="flex gap-2 items-center">
+                <input
+                  type="number"
+                  placeholder="Min"
+                  value={distanceMin || ""}
+                  onChange={handleDistanceMinChange}
+                  className="w-16 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-bgdarktheme2 text-blacktheme dark:text-textdarktheme"
+                  min="0"
+                  step="0.5"
+                />
+                <span className="text-sm text-greytheme dark:text-textdarktheme/70">to</span>
+                <input
+                  type="number"
+                  placeholder="Max"
+                  value={distanceMax || ""}
+                  onChange={handleDistanceMaxChange}
+                  className="w-16 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-bgdarktheme2 text-blacktheme dark:text-textdarktheme"
+                  min="0"
+                  step="0.5"
+                />
+                <span className="text-sm text-greytheme dark:text-textdarktheme/70">km</span>
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-greytheme dark:text-textdarktheme/70">
+              {t("search.filters.distance.enableLocation", "Enable location to filter by distance")}
+            </p>
+          )}
+        </div>
+
+        {/* Ordering */}
+        <div>
+          <h4 className="font-medium text-blacktheme dark:text-textdarktheme mb-2">
+            {t("search.filters.ordering.title", "Sort By")}
+          </h4>
+          <select
+            value={ordering}
+            onChange={handleOrderingChange}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-bgdarktheme2 text-blacktheme dark:text-textdarktheme focus:outline-none focus:ring-2 focus:ring-greentheme"
+          >
+            {orderingOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 

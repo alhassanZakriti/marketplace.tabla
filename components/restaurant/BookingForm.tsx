@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import { X, User, Mail, Phone, Calendar, Clock, Users, MessageSquare, Heart, Utensils } from "lucide-react"
-import { useCreateBooking } from "@/hooks/api/useReservations"
+import { useCreateBooking, useOffers } from "@/hooks/api/useReservations"
 import { useAuth } from "../auth/AuthProvider"
 import { dataProvider, type BookingRequest, type User as UserType } from "@/lib/dataProvider"
 
@@ -16,11 +16,7 @@ interface BookingFormProps {
     reserveDate: string
     time: string
     guests: number
-    offer?: {
-      title: string
-      description: string
-      percentage: number
-    } | null
+    offer_id?: number | null
   }
 }
 
@@ -28,29 +24,40 @@ export default function BookingForm({ isOpen, onClose, onSuccess, restaurantId, 
   const { isAuthenticated, user } = useAuth()
   const createBookingMutation = useCreateBooking()
   
+  // Get restaurant offers to display selected offer details
+  const { data: offers } = useOffers(restaurantId, !!restaurantId)
+  
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [userProfile, setUserProfile] = useState<UserType | null>(null)
 
   // Form state
-  const [formData, setFormData] = useState<BookingRequest>({
-    first_name: "",
-    last_name: "",
-    email: "",
-    phone: "",
-    title: "mr",
-    number_of_guests: bookingData?.guests || 2,
-    date: bookingData?.reserveDate || "",
-    time: bookingData?.time || "",
-    restaurant: restaurantId,
-    commenter: "",
-    internal_note: "",
-    allergies: "",
-    preferences: "",
-    occasion: undefined,
-    area: undefined,
-    offer: undefined,
+  const [formData, setFormData] = useState<BookingRequest>(() => {
+    const baseData: BookingRequest = {
+      first_name: "",
+      last_name: "",
+      email: "",
+      phone: "",
+      title: "mr",
+      number_of_guests: bookingData?.guests || 2,
+      date: bookingData?.reserveDate || "",
+      time: bookingData?.time || "",
+      restaurant: restaurantId,
+      commenter: "",
+      internal_note: "",
+      allergies: "",
+      preferences: "",
+      occasion: undefined,
+      area: undefined,
+    }
+
+    // Only include offer_id if there's actually an offer selected
+    if (bookingData?.offer_id && bookingData.offer_id > 0) {
+      baseData.offer_id = [bookingData.offer_id]
+    }
+
+    return baseData
   })
 
   // Load user profile data when component mounts
@@ -83,12 +90,24 @@ export default function BookingForm({ isOpen, onClose, onSuccess, restaurantId, 
   // Update form data when booking data changes
   useEffect(() => {
     if (bookingData) {
-      setFormData(prev => ({
-        ...prev,
-        number_of_guests: bookingData.guests,
-        date: bookingData.reserveDate,
-        time: bookingData.time,
-      }))
+      setFormData(prev => {
+        const updatedData: BookingRequest = {
+          ...prev,
+          number_of_guests: bookingData.guests,
+          date: bookingData.reserveDate,
+          time: bookingData.time,
+        }
+
+        // Only include offer_id if there's actually an offer selected
+        if (bookingData.offer_id && bookingData.offer_id > 0) {
+          updatedData.offer_id = [bookingData.offer_id]
+        } else {
+          // Remove offer_id from the form data if no offer is selected
+          delete updatedData.offer_id
+        }
+
+        return updatedData
+      })
     }
   }, [bookingData])
 
@@ -131,6 +150,14 @@ export default function BookingForm({ isOpen, onClose, onSuccess, restaurantId, 
         ...formData,
         time: formattedTime,
         restaurant: restaurantId,
+      }
+
+      // Only include offer_id if there's actually an offer selected
+      if (formData.offer_id && formData.offer_id.length > 0) {
+        bookingRequest.offer_id = formData.offer_id
+      } else {
+        // Explicitly remove offer_id from the request if no offer is selected
+        delete bookingRequest.offer_id
       }
 
       const result = await createBookingMutation.mutateAsync(bookingRequest)
@@ -206,16 +233,16 @@ export default function BookingForm({ isOpen, onClose, onSuccess, restaurantId, 
                   <span className="text-blacktheme dark:text-textdarktheme">{bookingData.guests} guests</span>
                 </div>
               </div>
-              {bookingData.offer && (
+              {/* {bookingData.offer_id && bookingData.offer_id > 0 && offers && (
                 <div className="mt-3 p-2 bg-warning-soft rounded-lg">
                   <div className="flex items-center">
                     <span className="bg-orangetheme text-white px-2 py-1 rounded-full text-xs font-bold mr-2">
-                      {bookingData.offer.percentage}% OFF
+                      {offers.find(offer => offer.id === bookingData.offer_id)?.percentage}% OFF
                     </span>
-                    <span className="text-sm text-blacktheme dark:text-textdarktheme">{bookingData.offer.title}</span>
+                    <span className="text-sm text-blacktheme dark:text-textdarktheme">{offers.find(offer => offer.id === bookingData.offer_id)?.title}</span>
                   </div>
                 </div>
-              )}
+              )} */}
             </div>
           )}
 
@@ -224,6 +251,14 @@ export default function BookingForm({ isOpen, onClose, onSuccess, restaurantId, 
             {/* Personal Information */}
             <div>
               <h3 className="text-lg font-semibold text-blacktheme dark:text-textdarktheme mb-3">Personal Information</h3>
+              {isAuthenticated && (
+                <div className="mb-4 p-3 bg-softgreentheme dark:bg-greentheme/20 border border-greentheme/20 dark:border-greentheme/40 rounded-lg">
+                  <p className="text-greentheme text-sm flex items-center">
+                    <User className="h-4 w-4 mr-2" />
+                    Your personal information has been automatically filled from your profile.
+                  </p>
+                </div>
+              )}
               
               {/* Title */}
               <div className="mb-4">
@@ -255,7 +290,13 @@ export default function BookingForm({ isOpen, onClose, onSuccess, restaurantId, 
                       required
                       value={formData.first_name}
                       onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                      className="w-full pl-10 pr-4 py-3 border border-softgreytheme dark:border-subblack rounded-lg bg-whitetheme dark:bg-bgdarktheme2 text-blacktheme dark:text-textdarktheme placeholder:text-greytheme dark:placeholder:text-textdarktheme/50 focus:border-greentheme focus:ring-2 focus:ring-softgreentheme outline-none transition-colors"
+                      readOnly={isAuthenticated}
+                      disabled={isAuthenticated}
+                      className={`w-full pl-10 pr-4 py-3 border border-softgreytheme dark:border-subblack rounded-lg text-blacktheme dark:text-textdarktheme placeholder:text-greytheme dark:placeholder:text-textdarktheme/50 outline-none transition-colors ${
+                        isAuthenticated 
+                          ? 'bg-softgreytheme dark:bg-subblack cursor-not-allowed opacity-70' 
+                          : 'bg-whitetheme dark:bg-bgdarktheme2 focus:border-greentheme focus:ring-2 focus:ring-softgreentheme'
+                      }`}
                       placeholder="Enter your first name"
                     />
                   </div>
@@ -271,7 +312,13 @@ export default function BookingForm({ isOpen, onClose, onSuccess, restaurantId, 
                       required
                       value={formData.last_name}
                       onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                      className="w-full pl-10 pr-4 py-3 border border-softgreytheme dark:border-subblack rounded-lg bg-whitetheme dark:bg-bgdarktheme2 text-blacktheme dark:text-textdarktheme placeholder:text-greytheme dark:placeholder:text-textdarktheme/50 focus:border-greentheme focus:ring-2 focus:ring-softgreentheme outline-none transition-colors"
+                      readOnly={isAuthenticated}
+                      disabled={isAuthenticated}
+                      className={`w-full pl-10 pr-4 py-3 border border-softgreytheme dark:border-subblack rounded-lg text-blacktheme dark:text-textdarktheme placeholder:text-greytheme dark:placeholder:text-textdarktheme/50 outline-none transition-colors ${
+                        isAuthenticated 
+                          ? 'bg-softgreytheme dark:bg-subblack cursor-not-allowed opacity-70' 
+                          : 'bg-whitetheme dark:bg-bgdarktheme2 focus:border-greentheme focus:ring-2 focus:ring-softgreentheme'
+                      }`}
                       placeholder="Enter your last name"
                     />
                   </div>
@@ -291,7 +338,13 @@ export default function BookingForm({ isOpen, onClose, onSuccess, restaurantId, 
                       required
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full pl-10 pr-4 py-3 border border-softgreytheme dark:border-subblack rounded-lg bg-whitetheme dark:bg-bgdarktheme2 text-blacktheme dark:text-textdarktheme placeholder:text-greytheme dark:placeholder:text-textdarktheme/50 focus:border-greentheme focus:ring-2 focus:ring-softgreentheme outline-none transition-colors"
+                      readOnly={isAuthenticated}
+                      disabled={isAuthenticated}
+                      className={`w-full pl-10 pr-4 py-3 border border-softgreytheme dark:border-subblack rounded-lg text-blacktheme dark:text-textdarktheme placeholder:text-greytheme dark:placeholder:text-textdarktheme/50 outline-none transition-colors ${
+                        isAuthenticated 
+                          ? 'bg-softgreytheme dark:bg-subblack cursor-not-allowed opacity-70' 
+                          : 'bg-whitetheme dark:bg-bgdarktheme2 focus:border-greentheme focus:ring-2 focus:ring-softgreentheme'
+                      }`}
                       placeholder="Enter your email"
                     />
                   </div>
@@ -307,7 +360,13 @@ export default function BookingForm({ isOpen, onClose, onSuccess, restaurantId, 
                       required
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full pl-10 pr-4 py-3 border border-softgreytheme dark:border-subblack rounded-lg bg-whitetheme dark:bg-bgdarktheme2 text-blacktheme dark:text-textdarktheme placeholder:text-greytheme dark:placeholder:text-textdarktheme/50 focus:border-greentheme focus:ring-2 focus:ring-softgreentheme outline-none transition-colors"
+                      readOnly={isAuthenticated}
+                      disabled={isAuthenticated}
+                      className={`w-full pl-10 pr-4 py-3 border border-softgreytheme dark:border-subblack rounded-lg text-blacktheme dark:text-textdarktheme placeholder:text-greytheme dark:placeholder:text-textdarktheme/50 outline-none transition-colors ${
+                        isAuthenticated 
+                          ? 'bg-softgreytheme dark:bg-subblack cursor-not-allowed opacity-70' 
+                          : 'bg-whitetheme dark:bg-bgdarktheme2 focus:border-greentheme focus:ring-2 focus:ring-softgreentheme'
+                      }`}
                       placeholder="Enter your phone number"
                     />
                   </div>

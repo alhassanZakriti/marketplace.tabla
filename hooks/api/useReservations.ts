@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { restaurantDataProvider, type Reservation, type ReservationsAPIResponse, type BookingRequest, type BookingResponse } from '@/lib/dataProvider'
+import { restaurantDataProvider, type Reservation, type ReservationsAPIResponse, type BookingRequest, type BookingResponse, type ReservationAvailabilityRequest, type ReservationAvailabilityResponse, type TimeSlotRequest, type ProcessedTimeSlotsResponse, type MonthlyAvailabilityResponse, type OfferType } from '@/lib/dataProvider'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { useQueryInvalidator } from './invalidationUtils'
 
@@ -118,5 +118,88 @@ export const useCreateBooking = () => {
     onError: (error: any) => {
       console.error('Failed to create booking:', error)
     }
+  })
+}
+
+// Check reservation availability using the reservation endpoint
+export const useReservationAvailability = (
+  restaurantId: string | number | undefined,
+  request: ReservationAvailabilityRequest | undefined,
+  enabled: boolean = true
+) => {
+  return useQuery({
+    queryKey: ['reservationAvailability', restaurantId, request],
+    queryFn: () => {
+      if (!restaurantId || !request) {
+        throw new Error('Restaurant ID and availability request are required')
+      }
+      return restaurantDataProvider.checkReservationAvailability(restaurantId, request)
+    },
+    enabled: enabled && !!restaurantId && !!request,
+    staleTime: 30 * 1000, // 30 seconds - availability can change quickly
+    gcTime: 2 * 60 * 1000, // 2 minutes
+    retry: 1, // Only retry once for availability checks
+  })
+}
+
+// Get available time slots for a specific date and guest count
+export const useTimeSlots = (
+  restaurantId: string | number | undefined,
+  request: TimeSlotRequest | undefined,
+  enabled: boolean = true
+) => {
+  return useQuery({
+    queryKey: ['timeSlots', restaurantId, request?.date, request?.number_of_guests],
+    queryFn: () => {
+      if (!restaurantId || !request) {
+        throw new Error('Restaurant ID and time slot request are required')
+      }
+      return restaurantDataProvider.getTimeSlots(restaurantId, request)
+    },
+    enabled: enabled && !!restaurantId && !!request,
+    staleTime: 60 * 1000, // 1 minute - time slots change less frequently
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    retry: 2, // Retry twice for time slots
+    // Provide default data structure on error
+    placeholderData: {
+      date: request?.date || '',
+      available_slots: []
+    }
+  })
+}
+
+// Get monthly availability for date filtering in calendar
+export const useMonthlyAvailability = (
+  restaurantId: string | number | undefined,
+  year: number,
+  month: number,
+  enabled: boolean = true
+) => {
+  return useQuery({
+    queryKey: ['monthlyAvailability', restaurantId, year, month],
+    queryFn: () => {
+      if (!restaurantId) {
+        throw new Error('Restaurant ID is required')
+      }
+      return restaurantDataProvider.getMonthlyAvailability(restaurantId, year, month)
+    },
+    enabled: enabled && !!restaurantId,
+    staleTime: 5 * 60 * 1000, // 5 minutes - availability doesn't change very frequently
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    retry: 2, // Retry twice for availability
+    // Provide default data structure on error
+    placeholderData: []
+  })
+}
+
+// Get restaurant offers
+export const useOffers = (restaurantId?: number | string, enabled = true) => {
+  return useQuery({
+    queryKey: ['offers', restaurantId],
+    queryFn: () => restaurantDataProvider.getOffers(restaurantId!),
+    enabled: enabled && !!restaurantId,
+    staleTime: 10 * 60 * 1000, // 10 minutes - offers don't change very often
+    gcTime: 30 * 60 * 1000, // 30 minutes
+    retry: 2
   })
 }

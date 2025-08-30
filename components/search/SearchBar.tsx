@@ -2,7 +2,6 @@
 
 import type React from "react"
 import { useState, useRef, useEffect } from "react"
-import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { Button } from "../ui/Button"
 
@@ -49,6 +48,8 @@ const SearchBar = () => {
 
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [citySuggestions, setCitySuggestions] = useState<City[]>([])
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1)
+  const [selectedCitySuggestionIndex, setSelectedCitySuggestionIndex] = useState(-1)
 
   // Fetch cities function
   const fetchCities = async () => {
@@ -162,6 +163,7 @@ const SearchBar = () => {
   const handleSearchTermChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newSearchTerm = event.target.value
     setSearchTerm(newSearchTerm)
+    setSelectedSuggestionIndex(-1)
     setSuggestions(filterSuggestions(newSearchTerm, popularSearches))
   }
 
@@ -169,36 +171,133 @@ const SearchBar = () => {
     const newCityTerm = event.target.value
     setCityTerm(newCityTerm)
     setSelectedCityId(null) // Reset selected city when typing
+    setSelectedCitySuggestionIndex(-1)
     setCitySuggestions(filterCitySuggestions(newCityTerm, cities))
+  }
+
+  // Handle Enter key press for search input
+  const handleSearchKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      if (selectedSuggestionIndex >= 0 && selectedSuggestionIndex < suggestions.length) {
+        // Select the highlighted suggestion
+        const selectedSuggestion = suggestions[selectedSuggestionIndex]
+        setSearchTerm(selectedSuggestion)
+        setIsFocused(false)
+        setTimeout(() => performSearch(selectedSuggestion), 100)
+      } else {
+        // Perform search with current input
+        setIsFocused(false)
+        performSearch()
+      }
+    } else if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      setSelectedSuggestionIndex(prev => 
+        prev < suggestions.length - 1 ? prev + 1 : prev
+      )
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      setSelectedSuggestionIndex(prev => prev > -1 ? prev - 1 : -1)
+    } else if (event.key === 'Escape') {
+      setIsFocused(false)
+      setSelectedSuggestionIndex(-1)
+    }
+  }
+
+  // Handle Enter key press for city input
+  const handleCityKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      if (selectedCitySuggestionIndex >= 0 && selectedCitySuggestionIndex < citySuggestions.length) {
+        // Select the highlighted city suggestion
+        const selectedCity = citySuggestions[selectedCitySuggestionIndex]
+        setCityTerm(selectedCity.name)
+        setSelectedCityId(selectedCity.id)
+        setIsCityFocused(false)
+        setTimeout(() => {
+          if (searchInputRef.current) {
+            searchInputRef.current.focus()
+          }
+        }, 100)
+      } else if (citySuggestions.length > 0) {
+        // Select the first matching city suggestion
+        const firstMatch = citySuggestions[0]
+        setCityTerm(firstMatch.name)
+        setSelectedCityId(firstMatch.id)
+        setIsCityFocused(false)
+        setTimeout(() => {
+          if (searchInputRef.current) {
+            searchInputRef.current.focus()
+          }
+        }, 100)
+      }
+    } else if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      setSelectedCitySuggestionIndex(prev => 
+        prev < citySuggestions.length - 1 ? prev + 1 : prev
+      )
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      setSelectedCitySuggestionIndex(prev => prev > -1 ? prev - 1 : -1)
+    } else if (event.key === 'Escape') {
+      setIsCityFocused(false)
+      setSelectedCitySuggestionIndex(-1)
+    }
   }
 
   const handleFocus = () => {
     setIsFocused(true)
+    setSelectedSuggestionIndex(-1)
     if (!searchTerm.trim()) {
       setSuggestions(popularSearches.slice(0, 5))
     }
   }
 
-  const handleBlur = () => setTimeout(() => setIsFocused(false), 150)
+  const handleBlur = () => setTimeout(() => {
+    setIsFocused(false)
+    setSelectedSuggestionIndex(-1)
+  }, 150)
 
   const handleCityFocus = () => {
     setIsCityFocused(true)
+    setSelectedCitySuggestionIndex(-1)
     if (!cityTerm.trim()) {
       setCitySuggestions(cities.slice(0, 8))
     }
   }
 
-  const handleCityBlur = () => setTimeout(() => setIsCityFocused(false), 150)
+  const handleCityBlur = () => setTimeout(() => {
+    setIsCityFocused(false)
+    setSelectedCitySuggestionIndex(-1)
+  }, 150)
+
+  // Function to perform search navigation
+  const performSearch = (searchValue: string = searchTerm, cityValue: string | number = selectedCityId || cityTerm) => {
+    const searchUrl = `/search?term=${encodeURIComponent(searchValue)}&city=${encodeURIComponent(String(cityValue))}`
+    window.location.href = searchUrl
+  }
 
   const handleSuggestionClick = (suggestion: string) => {
     setSearchTerm(suggestion)
     setIsFocused(false)
+    
+    // Automatically perform search when suggestion is selected
+    setTimeout(() => {
+      performSearch(suggestion)
+    }, 100)
   }
 
   const handleCitySuggestionClick = (city: City) => {
     setCityTerm(city.name)
     setSelectedCityId(city.id)
     setIsCityFocused(false)
+    
+    // Automatically focus the search input after city selection
+    setTimeout(() => {
+      if (searchInputRef.current) {
+        searchInputRef.current.focus()
+      }
+    }, 100)
   }
 
   // Manual retry function for cities
@@ -235,6 +334,7 @@ const SearchBar = () => {
           ref={cityInputRef}
           value={cityTerm}
           onChange={handleCityTermChange}
+          onKeyPress={handleCityKeyPress}
           placeholder={citiesLoading ? "Loading cities..." : "City"}
           disabled={!!citiesLoading || !!hasCitiesError}
           className="w-full pl-10 pr-4 py-3 rounded-xl  outline-none transition-all duration-200 font-medium placeholder:text-gray-400 dark:placeholder:text-gray-500 bg-white dark:bg-bgdarktheme2 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
@@ -258,11 +358,16 @@ const SearchBar = () => {
                 Cities {isRetrying && <span className="text-yellow-600 text-xs">(Retrying...)</span>}
               </p>
             </div>
-            {citySuggestions.map((city) => (
+            {citySuggestions.map((city, index) => (
               <li
                 key={city.id}
-                className="px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-bgdarktheme2 flex items-center cursor-pointer transition-colors duration-150 "
+                className={`px-3 py-2.5 flex items-center cursor-pointer transition-colors duration-150 ${
+                  index === selectedCitySuggestionIndex 
+                    ? 'bg-green-50 dark:bg-green-900/20' 
+                    : 'hover:bg-gray-50 dark:hover:bg-bgdarktheme2'
+                }`}
                 onMouseDown={() => handleCitySuggestionClick(city)}
+                onMouseEnter={() => setSelectedCitySuggestionIndex(index)}
                 role="option"
                 aria-selected={cityTerm === city.name}
               >
@@ -317,6 +422,7 @@ const SearchBar = () => {
           ref={searchInputRef}
           value={searchTerm}
           onChange={handleSearchTermChange}
+          onKeyPress={handleSearchKeyPress}
           placeholder="Search restaurants, cuisine..."
           className="w-full pl-10 pr-4 py-3 rounded-xl outline-none transition-all duration-200 font-medium placeholder:text-gray-400 dark:placeholder:text-gray-500 bg-white dark:bg-bgdarktheme2 text-gray-900 dark:text-white"
           onFocus={handleFocus}
@@ -336,8 +442,13 @@ const SearchBar = () => {
             {suggestions.map((suggestion, index) => (
               <li
                 key={`${suggestion}-${index}`}
-                className="px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-bgdarktheme2 flex items-center cursor-pointer transition-colors duration-150 "
+                className={`px-3 py-2.5 flex items-center cursor-pointer transition-colors duration-150 ${
+                  index === selectedSuggestionIndex 
+                    ? 'bg-green-50 dark:bg-green-900/20' 
+                    : 'hover:bg-gray-50 dark:hover:bg-bgdarktheme2'
+                }`}
                 onMouseDown={() => handleSuggestionClick(suggestion)}
+                onMouseEnter={() => setSelectedSuggestionIndex(index)}
                 role="option"
                 aria-selected={searchTerm === suggestion}
               >
@@ -362,16 +473,9 @@ const SearchBar = () => {
         <Button
             variant="primary"
             className="ml-2"
-            onClick={() => {
-            const searchUrl = `/search?term=${encodeURIComponent(searchTerm)}&city=${encodeURIComponent(
-                selectedCityId ? String(selectedCityId) : cityTerm,
-            )}`
-            window.location.href = searchUrl
-            }}
+            onClick={() => performSearch()}
             >
-            <Link href={`/search?term=${encodeURIComponent(searchTerm)}&city=${encodeURIComponent(selectedCityId ? String(selectedCityId) : cityTerm)}`}>
             Search
-            </Link>
         </Button> 
     </div>
   )

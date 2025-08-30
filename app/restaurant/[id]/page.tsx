@@ -34,7 +34,7 @@ type SelectedData = {
   reserveDate: string
   time: string
   guests: number
-  offer?: OfferType | null
+  offer_id?: number
 }
 
 const LoadingSkeleton = ({ className = "" }: { className?: string }) => (
@@ -160,7 +160,11 @@ export default function RestaurantPage() {
     setTouchEndX(null)
   }
 
-  const [bookingData, setBookingData] = useState<SelectedData | undefined>(undefined)
+  const [bookingData, setBookingData] = useState<SelectedData>({
+    reserveDate: "",
+    time: "",
+    guests: 2,
+  })
   const [shouldShowBook, setShouldShowBook] = useState(false)
 
   useEffect(() => {
@@ -350,8 +354,6 @@ export default function RestaurantPage() {
       {showReservationProcess && (
         <ReservationProcess
           getDateTime={setBookingData}
-          offers={offers}
-          noOffer={offers.length === 0}
           dateTime={bookingData}
           onClick={() => setShowReservationProcess(false)}
           restaurantId={parseInt(id)}
@@ -590,7 +592,7 @@ export default function RestaurantPage() {
                           reserveDate: prev?.reserveDate || "",
                           time: prev?.time || "",
                           guests: prev?.guests || 0,
-                          offer: offer,
+                          offer_id: offer.id,
                         }))
                       }}
                     >

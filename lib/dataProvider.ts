@@ -267,10 +267,20 @@ export interface SearchParams {
   limit?: number
   rating?: number
   status?: "Open" | "Closed"
+  category?: string
+  min_price?: number
+  max_price?: number
+  distance_min?: number
+  distance_max?: number
+  date?: string // YYYY-MM-DD format for availability filter
+  time?: string // HH:MM format for availability filter
+  party_size?: number // For availability filter
+  ordering?: string // For sorting: 'distance', 'rating', 'price', etc.
 }
 
 // Define the offer type to match the API structure
 export interface OfferType {
+  id: number
   title: string
   description: string
   percentage: number
@@ -309,6 +319,58 @@ export interface AvailabilityCheckResponse {
   restaurant_id: number
   availability: DayAvailability[]
 }
+
+// Interface for reservation-based availability check
+export interface ReservationAvailabilityRequest {
+  date: string // YYYY-MM-DD format
+  time: string // HH:MM:SS format
+  number_of_guests: number
+  offer?: number // Optional offer ID
+}
+
+export interface ReservationAvailabilityResponse {
+  available: boolean
+  message?: string
+  alternative_times?: string[]
+  max_capacity?: number
+}
+
+// Interface for time slots API
+export interface TimeSlotRequest {
+  date: string // YYYY-MM-DD format
+  number_of_guests: number
+}
+
+export interface TimeSlot {
+  time: string // HH:MM format
+  available: boolean
+  capacity?: number
+}
+
+// Updated interface to match actual API response
+export interface TimeSlotsResponse {
+  [mealPeriod: string]: string[] // e.g., "Lunch": ["12:00", "12:15", ...], "dinner": []
+}
+
+// Processed interface for use in components
+export interface ProcessedTimeSlotsResponse {
+  date: string
+  available_slots: TimeSlot[]
+}
+
+// Interface for monthly availability API
+export interface MonthlyAvailabilityRequest {
+  year: number
+  month: number // 1-12
+}
+
+export interface MonthlyDayAvailability {
+  day: number // Day of the month (1-31)
+  isAvailable: boolean
+}
+
+// Updated to match actual API response format (array of day objects)
+export interface MonthlyAvailabilityResponse extends Array<MonthlyDayAvailability> {}
 
 export interface MenuItem {
   name: string
@@ -436,7 +498,7 @@ export interface BookingRequest {
   preferences?: string
   occasion?: number
   area?: number
-  offer?: number
+  offer_id?: number[]
 }
 
 export interface BookingResponse {
@@ -474,6 +536,14 @@ export const restaurantDataProvider = {
     if (params?.limit) searchParams.append("limit", params.limit.toString())
     if (params?.rating) searchParams.append("rating", params.rating.toString())
     if (params?.status) searchParams.append("status", params.status)
+    if (params?.category) searchParams.append("category", params.category)
+    if (params?.min_price) searchParams.append("min_price", params.min_price.toString())
+    if (params?.max_price) searchParams.append("max_price", params.max_price.toString())
+    if (params?.distance_max) searchParams.append("distance", params.distance_max.toString())
+    if (params?.date) searchParams.append("date", params.date)
+    if (params?.time) searchParams.append("time", params.time)
+    if (params?.party_size) searchParams.append("party_size", params.party_size.toString())
+    if (params?.ordering) searchParams.append("ordering", params.ordering)
 
     const queryString = searchParams.toString()
     const endpoint = `api/v1/mp/restaurants/${queryString ? `?${queryString}` : ""}`
@@ -518,6 +588,156 @@ export const restaurantDataProvider = {
         body: JSON.stringify(request)
       }
     )
+  },
+
+  // Batch check availability for multiple restaurants
+  checkMultipleRestaurantsAvailability: async (
+    restaurantIds: (string | number)[],
+    request: AvailabilityCheckRequest
+  ): Promise<Record<string, AvailabilityCheckResponse>> => {
+    const availabilityPromises = restaurantIds.map(async (id) => {
+      try {
+        const availability = await restaurantDataProvider.checkRestaurantAvailability(id, request)
+        return { id: id.toString(), availability }
+      } catch (error) {
+        // If availability check fails for a restaurant, mark it as unavailable
+        return { 
+          id: id.toString(), 
+          availability: {
+            restaurant_id: Number(id),
+            availability: [{
+              date: request.date,
+              available: false,
+              slots: []
+            }]
+          }
+        }
+      }
+    })
+
+    const results = await Promise.all(availabilityPromises)
+    return results.reduce((acc, { id, availability }) => {
+      acc[id] = availability
+      return acc
+    }, {} as Record<string, AvailabilityCheckResponse>)
+  },
+
+  // Check availability using reservation endpoint (more accurate)
+  checkReservationAvailability: async (
+    id: string | number,
+    request: ReservationAvailabilityRequest
+  ): Promise<ReservationAvailabilityResponse> => {
+    try {
+      // Use the reservation endpoint to check if the specific time/date/party size is available
+      const response = await apiRequest<any>(
+        `api/v1/mp/restaurants/${id}/make_reservation_with_offer/`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            ...request,
+            // Add required fields for reservation check
+            first_name: "availability_check",
+            last_name: "availability_check", 
+            email: "check@availability.com",
+            phone: "0000000000",
+            title: "mr",
+            restaurant: Number(id),
+            check_only: true // Flag to indicate this is just an availability check
+          })
+        }
+      )
+      
+      return {
+        available: true,
+        message: "Time slot is available"
+      }
+    } catch (error: any) {
+      // If the reservation fails, parse the error to understand why
+      if (error.status === 400 || error.status === 409) {
+        return {
+          available: false,
+          message: error.message || "Time slot not available",
+          alternative_times: error.alternative_times || []
+        }
+      }
+      
+      // For other errors or if API returns nothing, assume available (graceful fallback)
+      console.warn("Availability check failed, assuming available:", error)
+      return {
+        available: true,
+        message: "Unable to verify availability, proceeding with reservation"
+      }
+    }
+  },
+
+  // Get available time slots for a specific date and guest count
+  getTimeSlots: async (
+    id: string | number,
+    request: TimeSlotRequest
+  ): Promise<ProcessedTimeSlotsResponse> => {
+    const params = new URLSearchParams({
+      date: request.date,
+      number_of_guests: request.number_of_guests.toString()
+    })
+    
+    try {
+      const response = await apiRequest<TimeSlotsResponse>(
+        `api/v1/mp/restaurants/${id}/time_slots/?${params.toString()}`
+      )
+      
+      console.log('Raw time slots API response:', response)
+      
+      // Convert meal period format to flat array of time slots
+      const availableSlots: TimeSlot[] = []
+      
+      // Process each meal period
+      Object.entries(response).forEach(([mealPeriod, timeSlots]) => {
+        console.log(`Processing ${mealPeriod}:`, timeSlots)
+        if (Array.isArray(timeSlots)) {
+          timeSlots.forEach(timeStr => {
+            availableSlots.push({
+              time: timeStr,
+              available: true, // All returned times are available
+              capacity: undefined
+            })
+          })
+        }
+      })
+      
+      console.log('Final processed slots:', availableSlots)
+      
+      return {
+        date: request.date,
+        available_slots: availableSlots
+      }
+    } catch (error) {
+      console.error('Error fetching time slots:', error)
+      // Return empty slots on error
+      return {
+        date: request.date,
+        available_slots: []
+      }
+    }
+  },
+
+  // Get monthly availability for a restaurant
+  getMonthlyAvailability: async (
+    id: string | number,
+    year: number,
+    month: number
+  ): Promise<MonthlyAvailabilityResponse> => {
+    try {
+      const response = await apiRequest<MonthlyAvailabilityResponse>(
+        `api/v1/mp/restaurants/${id}/monthly_availability/${year}-${month.toString().padStart(2, '0')}/`
+      )
+      
+      // Ensure response is always an array
+      return Array.isArray(response) ? response : []
+    } catch (error) {
+      console.error('Error fetching monthly availability:', error)
+      // Return empty availability on error
+      return []
+    }
   },
 
   // Get restaurant menu
@@ -822,17 +1042,29 @@ export const restaurantDataProvider = {
     }
   },
 
+  // Get offers for a restaurant
+  getOffers: async (restaurantId: string | number): Promise<OfferType[]> => {
+    try {
+      return await apiRequest<OfferType[]>(`api/v1/mp/restaurants/${restaurantId}/offers/`)
+    } catch (error) {
+      console.error("Error fetching offers:", error)
+      throw error
+    }
+  },
+
   // Create a new booking/reservation
   createBooking: async (bookingData: BookingRequest): Promise<BookingResponse> => {
     console.log('📝 Creating new booking...', bookingData)
     try {
-      const result = await apiRequest<BookingResponse>("api/v1/mp/reservations/", {
+      // Use the new endpoint with restaurant ID
+      const endpoint = `api/v1/mp/restaurants/${bookingData.restaurant}/make_reservation_with_offer/`
+      
+      const result = await apiRequest<BookingResponse>(endpoint, {
         method: "POST",
-        body: JSON.stringify((prev: BookingRequest) => ({
-          ...prev,
+        body: JSON.stringify({
           ...bookingData,
           source: "MARKETPLACE",
-        })),
+        }),
       })
       console.log('📝 Booking created successfully:', result)
       return result

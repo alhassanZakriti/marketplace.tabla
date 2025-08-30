@@ -62,7 +62,7 @@ function HomeHero() {
       </div>
 
       {/* Content Container */}
-      <div className="relative z-10 w-full h-full flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8">
+      <div className="relative z-10 w-full h-full flex flex-col md:mt-[-20vh] items-center justify-center px-4 sm:px-6 lg:px-8">
         <div className="w-full max-w-7xl mx-auto text-center">
           {/* Hero Text Content */}
           <motion.div
@@ -113,7 +113,7 @@ function HomeHero() {
       <AnimatePresence>
         {showScrollButton && (
           <motion.div
-            className="absolute bottom-16 left-0 right-0 flex justify-center z-20"
+            className="absolute bottom-16 left-0 right-0 flex justify-center z-[0]"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
