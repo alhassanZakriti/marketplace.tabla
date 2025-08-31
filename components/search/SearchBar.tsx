@@ -4,6 +4,11 @@ import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import { Button } from "../ui/Button"
+import { 
+  Building, Pin, Table, MapPin, Search, SearchCheck, SearchIcon, 
+  LocationEdit, Navigation, Building2, SeparatorHorizontal, Store,
+  Utensils, Gift, ChefHat, Calendar, Heart, Star
+} from "lucide-react"
 
 interface City {
   id: string | number
@@ -18,6 +23,12 @@ interface CitiesAPIResponse {
   next: string | null
   previous: string | null
   results: City[]
+}
+
+interface Suggestion {
+  id: string | number
+  word: string
+  category: 'Cuisine' | 'Offer' | 'Dish' | 'Moments' | 'Recommended by Tabla.ma'
 }
 
 const SearchBar = () => {
@@ -38,15 +49,51 @@ const SearchBar = () => {
   const [isRetrying, setIsRetrying] = useState(false)
 
   const [searchTerm, setSearchTerm] = useState(term)
-  const [cityTerm, setCityTerm] = useState("")
+  const [cityTerm, setCityTerm] = useState("Casablanca")
   const [selectedCityId, setSelectedCityId] = useState<string | number | null>(null)
   const [isFocused, setIsFocused] = useState(false)
   const [isCityFocused, setIsCityFocused] = useState(false)
 
-  // Popular search suggestions
-  const popularSearches = ["Pizza", "Sushi", "Burger", "Italian", "Chinese", "Mexican", "Seafood", "Vegetarian"]
+  // Search suggestions with categories
+  const searchSuggestions: Suggestion[] = [
+    // Cuisine suggestions
+    { id: 17, word: "Date Night", category: "Moments" },
+    { id: 25, word: "Rooftop", category: "Recommended by Tabla.ma" },
+    { id: 1, word: "Italian", category: "Cuisine" },
+    { id: 12, word: "Ramen", category: "Dish" },
+    { id: 10, word: "Pasta", category: "Dish" },
+    { id: 18, word: "Business Lunch", category: "Moments" },
+    { id: 3, word: "Mexican", category: "Cuisine" },
+    { id: 4, word: "Japanese", category: "Cuisine" },
+    { id: 5, word: "French", category: "Cuisine" },
+    
+    // Dish suggestions
+    { id: 7, word: "Pizza", category: "Dish" },
+    { id: 8, word: "Sushi", category: "Dish" },
+    { id: 15, word: "Weekend Special", category: "Offer" },
+    { id: 11, word: "Tacos", category: "Dish" },
+    
+    // Offer suggestions
+    { id: 13, word: "Happy Hour", category: "Offer" },
+    { id: 6, word: "Mediterranean", category: "Cuisine" },
+    { id: 22, word: "Seafood", category: "Recommended by Tabla.ma" },
+    { id: 14, word: "Lunch Deal", category: "Offer" },
+    { id: 16, word: "Family Package", category: "Offer" },
+    
+    { id: 2, word: "Chinese", category: "Cuisine" },
+    // Moments suggestions
+    { id: 19, word: "Family Dinner", category: "Moments" },
+    { id: 24, word: "Fine Dining", category: "Recommended by Tabla.ma" },
+    { id: 20, word: "Birthday Celebration", category: "Moments" },
+    { id: 23, word: "Vegetarian", category: "Recommended by Tabla.ma" },
+    { id: 21, word: "Anniversary", category: "Moments" },
+    
+    // Recommended by Tabla.ma
+    { id: 26, word: "Live Music", category: "Recommended by Tabla.ma" },
+    { id: 9, word: "Burger", category: "Dish" }
+  ]
 
-  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [citySuggestions, setCitySuggestions] = useState<City[]>([])
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1)
   const [selectedCitySuggestionIndex, setSelectedCitySuggestionIndex] = useState(-1)
@@ -120,6 +167,13 @@ const SearchBar = () => {
   // Initialize city term and selected city ID from URL params
   useEffect(() => {
     if (city && cities.length > 0) {
+      // Handle "Near me" special case
+      if (city === 'near-me' || city.toLowerCase() === 'near me') {
+        setCityTerm('Near me')
+        setSelectedCityId('near-me')
+        return
+      }
+      
       // Try to find city by ID first
       const cityById = cities.find((c) => String(c.id) === city)
       if (cityById) {
@@ -150,21 +204,38 @@ const SearchBar = () => {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const cityInputRef = useRef<HTMLInputElement>(null)
 
-  const filterSuggestions = (term: string, data: string[]) => {
+  const filterSuggestions = (term: string, data: Suggestion[]) => {
     if (!term.trim()) return data.slice(0, 5) // Show popular searches when empty
-    return data.filter((item) => item.toLowerCase().includes(term.toLowerCase())).slice(0, 8)
+    return data.filter((item) => item.word.toLowerCase().includes(term.toLowerCase())).slice(0, 8)
   }
 
   const filterCitySuggestions = (term: string, data: City[]) => {
-    if (!term.trim()) return data.slice(0, 8) // Show first 8 cities when empty
-    return data.filter((city) => city.name.toLowerCase().includes(term.toLowerCase())).slice(0, 8)
+    const filteredCities = !term.trim() 
+      ? data.slice(0, 8) // Show first 8 cities when empty
+      : data.filter((city) => city.name.toLowerCase().includes(term.toLowerCase())).slice(0, 8)
+    
+    // Create "Near me" option
+    const nearMeOption: City = {
+      id: 'near-me',
+      name: 'Near me',
+      image: null,
+      boundary: null,
+      country: 'current-location'
+    }
+    
+    // Add "Near me" at the top if search term is empty or matches "near"
+    if (!term.trim() || 'near me'.includes(term.toLowerCase())) {
+      return [nearMeOption, ...filteredCities]
+    }
+    
+    return filteredCities
   }
 
   const handleSearchTermChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newSearchTerm = event.target.value
     setSearchTerm(newSearchTerm)
     setSelectedSuggestionIndex(-1)
-    setSuggestions(filterSuggestions(newSearchTerm, popularSearches))
+    setSuggestions(filterSuggestions(newSearchTerm, searchSuggestions))
   }
 
   const handleCityTermChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -182,9 +253,9 @@ const SearchBar = () => {
       if (selectedSuggestionIndex >= 0 && selectedSuggestionIndex < suggestions.length) {
         // Select the highlighted suggestion
         const selectedSuggestion = suggestions[selectedSuggestionIndex]
-        setSearchTerm(selectedSuggestion)
+        setSearchTerm(selectedSuggestion.word)
         setIsFocused(false)
-        setTimeout(() => performSearch(selectedSuggestion), 100)
+        setTimeout(() => performSearch(selectedSuggestion.word), 100)
       } else {
         // Perform search with current input
         setIsFocused(false)
@@ -211,8 +282,13 @@ const SearchBar = () => {
       if (selectedCitySuggestionIndex >= 0 && selectedCitySuggestionIndex < citySuggestions.length) {
         // Select the highlighted city suggestion
         const selectedCity = citySuggestions[selectedCitySuggestionIndex]
-        setCityTerm(selectedCity.name)
-        setSelectedCityId(selectedCity.id)
+        if (selectedCity.id === 'near-me') {
+          setCityTerm('Near me')
+          setSelectedCityId('near-me')
+        } else {
+          setCityTerm(selectedCity.name)
+          setSelectedCityId(selectedCity.id)
+        }
         setIsCityFocused(false)
         setTimeout(() => {
           if (searchInputRef.current) {
@@ -222,8 +298,13 @@ const SearchBar = () => {
       } else if (citySuggestions.length > 0) {
         // Select the first matching city suggestion
         const firstMatch = citySuggestions[0]
-        setCityTerm(firstMatch.name)
-        setSelectedCityId(firstMatch.id)
+        if (firstMatch.id === 'near-me') {
+          setCityTerm('Near me')
+          setSelectedCityId('near-me')
+        } else {
+          setCityTerm(firstMatch.name)
+          setSelectedCityId(firstMatch.id)
+        }
         setIsCityFocused(false)
         setTimeout(() => {
           if (searchInputRef.current) {
@@ -249,7 +330,7 @@ const SearchBar = () => {
     setIsFocused(true)
     setSelectedSuggestionIndex(-1)
     if (!searchTerm.trim()) {
-      setSuggestions(popularSearches.slice(0, 5))
+      setSuggestions(searchSuggestions.slice(0, 26))
     }
   }
 
@@ -277,17 +358,33 @@ const SearchBar = () => {
     window.location.href = searchUrl
   }
 
-  const handleSuggestionClick = (suggestion: string) => {
-    setSearchTerm(suggestion)
+  const handleSuggestionClick = (suggestion: Suggestion) => {
+    setSearchTerm(suggestion.word)
     setIsFocused(false)
     
     // Automatically perform search when suggestion is selected
     setTimeout(() => {
-      performSearch(suggestion)
+      performSearch(suggestion.word)
     }, 100)
   }
 
   const handleCitySuggestionClick = (city: City) => {
+    // Handle "Near me" option
+    if (city.id === 'near-me') {
+      setCityTerm('Near me')
+      setSelectedCityId('near-me')
+      setIsCityFocused(false)
+      
+      // Automatically focus the search input after city selection
+      setTimeout(() => {
+        if (searchInputRef.current) {
+          searchInputRef.current.focus()
+        }
+      }, 100)
+      return
+    }
+    
+    // Handle regular city selection
     setCityTerm(city.name)
     setSelectedCityId(city.id)
     setIsCityFocused(false)
@@ -318,16 +415,9 @@ const SearchBar = () => {
   return (
     <div className="border-1 dark:border-gray-600 border-gray-200 sm:flex hidden bg-white dark:bg-bgdarktheme items  p-4 rounded-2xl transition-all duration-200 hover:shadow-xl dark:hover:shadow-[0_20px_25px_-5px_rgba(0,0,0,0.3)] max-w-4xl mx-auto relative items-center gap-4">
       {/* City Input */}
-      <div className="relative flex-1 min-w-[180px]">
-        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-green-600">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path
-              fillRule="evenodd"
-              clipRule="evenodd"
-              d="M9 0C10.6569 0 12 1.34315 12 3L12.0001 4.17067C12.3128 4.06014 12.6494 4 13 4H17C18.6569 4 20 5.34315 20 7V17C20 18.6569 18.6569 20 17 20H3C1.34315 20 0 18.6569 0 17V3C0 1.34315 1.34315 0 3 0H9ZM9 2H3C2.44772 2 2 2.44772 2 3V17C2 17.5523 2.44772 18 3 18H10V3C10 2.44772 9.55229 2 9 2ZM17 6H13C12.4477 6 12 6.44772 12 7V18H17C17.5523 18 18 17.5523 18 17V7C18 6.44772 17.5523 6 17 6ZM7 12C7.55228 12 8 12.4477 8 13C8 13.5523 7.55228 14 7 14H5C4.44772 14 4 13.5523 4 13C4 12.4477 4.44772 12 5 12H7ZM16 12C16.5523 12 17 12.4477 17 13C17 13.5523 16.5523 14 16 14H14C13.4477 14 13 13.5523 13 13C13 12.4477 13.4477 12 14 12H16ZM7 8C7.55228 8 8 8.44771 8 9C8 9.55229 7.55228 10 7 10H5C4.44772 10 4 9.55229 4 9C4 8.44771 4.44772 8 5 8H7ZM16 8C16.5523 8 17 8.44771 17 9C17 9.55229 16.5523 10 16 10H14C13.4477 10 13 9.55229 13 9C13 8.44771 13.4477 8 14 8H16ZM7 4C7.55228 4 8 4.44772 8 5C8 5.55228 7.55228 6 7 6H5C4.44772 6 4 5.55228 4 5C4 4.44772 4.44772 4 5 4H7Z"
-              className="fill-gray-400 dark:fill-gray-500"
-            />
-          </svg>
+      <div className="relative flex-1 cursor-pointer min-w-[180px]">
+        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-greentheme">
+          <Building2 className="w-5 h-5" />
         </div>
         <input
           type="text"
@@ -337,7 +427,7 @@ const SearchBar = () => {
           onKeyPress={handleCityKeyPress}
           placeholder={citiesLoading ? "Loading cities..." : "City"}
           disabled={!!citiesLoading || !!hasCitiesError}
-          className="w-full pl-10 pr-4 py-3 rounded-xl  outline-none transition-all duration-200 font-medium placeholder:text-gray-400 dark:placeholder:text-gray-500 bg-white dark:bg-bgdarktheme2 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full pl-10 pr-4 py-3 cursor-pointer rounded-xl  outline-none transition-all duration-200 font-medium placeholder:text-gray-400 dark:placeholder:text-gray-500 bg-white dark:bg-bgdarktheme2 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
           onFocus={handleCityFocus}
           onBlur={handleCityBlur}
         />
@@ -353,9 +443,13 @@ const SearchBar = () => {
             className="absolute left-0 right-0 mt-2 bg-white dark:bg-bgdarktheme shadow-2xl dark:shadow-[0_10px_15px_-3px_rgba(0,0,0,0.4)] rounded-xl overflow-hidden z-30 max-h-[200px] overflow-y-auto"
             role="listbox"
           >
-            <div className="p-3  ">
-              <p className="font-semibold text-bgbg-bgdarktheme dark:text-white text-sm">
-                Cities {isRetrying && <span className="text-yellow-600 text-xs">(Retrying...)</span>}
+            <li className="px-3 py-2.5 hover:bg-softgreentheme flex items-center cursor-pointer transition-colors duration-150">
+              <Navigation className="w-5 h-5 mr-3 text-greentheme" />
+              <span className="font-medium  dark:text-white">Near Me</span>
+            </li>
+            <div className="px-3 py-1">
+              <p className="font-semibold text-bgdarktheme bg-bgdarktheme dark:text-white text-left text-sm">
+                {cityTerm.trim() ? "Search Results" : "Locations"} {isRetrying && <span className="text-yellow-600 text-xs">(Retrying...)</span>}
               </p>
             </div>
             {citySuggestions.map((city, index) => (
@@ -365,23 +459,27 @@ const SearchBar = () => {
                   index === selectedCitySuggestionIndex 
                     ? 'bg-green-50 dark:bg-green-900/20' 
                     : 'hover:bg-gray-50 dark:hover:bg-bgdarktheme2'
-                }`}
+                } ${city.id === 'near-me' ? 'border-b border-gray-100 dark:border-gray-700' : ''}`}
                 onMouseDown={() => handleCitySuggestionClick(city)}
                 onMouseEnter={() => setSelectedCitySuggestionIndex(index)}
                 role="option"
                 aria-selected={cityTerm === city.name}
               >
-                <span className="text-green-600 mr-3">
-                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path
-                      fillRule="evenodd"
-                      clipRule="evenodd"
-                      d="M9 0C10.6569 0 12 1.34315 12 3L12.0001 4.17067C12.3128 4.06014 12.6494 4 13 4H17C18.6569 4 20 5.34315 20 7V17C20 18.6569 18.6569 20 17 20H3C1.34315 20 0 18.6569 0 17V3C0 1.34315 1.34315 0 3 0H9ZM9 2H3C2.44772 2 2 2.44772 2 3V17C2 17.5523 2.44772 18 3 18H10V3C10 2.44772 9.55229 2 9 2ZM17 6H13C12.4477 6 12 6.44772 12 7V18H17C17.5523 18 18 17.5523 18 17V7C18 6.44772 17.5523 6 17 6ZM7 12C7.55228 12 8 12.4477 8 13C8 13.5523 7.55228 14 7 14H5C4.44772 14 4 13.5523 4 13C4 12.4477 4.44772 12 5 12H7ZM16 12C16.5523 12 17 12.4477 17 13C17 13.5523 16.5523 14 16 14H14C13.4477 14 13 13.5523 13 13C13 12.4477 13.4477 12 14 12H16ZM7 8C7.55228 8 8 8.44771 8 9C8 9.55229 7.55228 10 7 10H5C4.44772 10 4 9.55229 4 9C4 8.44771 4.44772 8 5 8H7ZM16 8C16.5523 8 17 8.44771 17 9C17 9.55229 16.5523 10 16 10H14C13.4477 10 13 9.55229 13 9C13 8.44771 13.4477 8 14 8H16ZM7 4C7.55228 4 8 4.44772 8 5C8 5.55228 7.55228 6 7 6H5C4.44772 6 4 5.55228 4 5C4 4.44772 4.44772 4 5 4H7Z"
-                      className="fill-gray-400 dark:fill-gray-500"
-                    />
-                  </svg>
+                <span className="text-greentheme mr-3">
+                  {city.id === 'near-me' ? <LocationEdit className="w-5 h-5" /> : <Building2 className="w-5 h-5" />}
                 </span>
-                <span className="font-medium text-bgbg-bgdarktheme2 dark:text-white">{city.name}</span>
+                <span className={`font-medium ${
+                  city.id === 'near-me' 
+                    ? 'text-green-600 dark:text-green-400 font-semibold' 
+                    : 'text-bgbg-bgdarktheme2 dark:text-white'
+                }`}>
+                  {city.name}
+                </span>
+                {city.id === 'near-me' && (
+                  <span className="ml-auto text-sm text-green-600 dark:text-green-400 font-medium">
+                    Use current location
+                  </span>
+                )}
               </li>
             ))}
           </ul>
@@ -406,16 +504,9 @@ const SearchBar = () => {
       <div className="h-10 w-px bg-gray-200 dark:bg-gray-600 mx-1"></div>
 
       {/* Search Input */}
-      <div className="relative flex-1 min-w-[180px]">
-        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-green-600">
-          <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path
-              fillRule="evenodd"
-              clipRule="evenodd"
-              d="M9.91669 0.166687C15.3015 0.166687 19.6667 4.53191 19.6667 9.91669C19.6667 12.2185 18.869 14.3341 17.535 16.002L21.5161 19.984C21.9391 20.4071 21.9391 21.093 21.5161 21.5161C21.1255 21.9066 20.511 21.9366 20.086 21.6062L19.984 21.5161L16.002 17.535C14.3341 18.869 12.2185 19.6667 9.91669 19.6667C4.53191 19.6667 0.166687 15.3015 0.166687 9.91669C0.166687 4.53191 4.53191 0.166687 9.91669 0.166687ZM9.91669 2.33335C5.72853 2.33335 2.33335 5.72853 2.33335 9.91669C2.33335 14.1048 5.72853 17.5 9.91669 17.5C14.1048 17.5 17.5 14.1048 17.5 9.91669C17.5 5.72853 14.1048 2.33335 9.91669 2.33335Z"
-              className="fill-gray-400 dark:fill-gray-500"
-            />
-          </svg>
+      <div className="relative flex-1 cursor-pointer min-w-[180px]">
+        <div className="absolute left-3  top-1/2 -translate-y-1/2 text-greentheme">
+          <SearchIcon />
         </div>
         <input
           type="text"
@@ -424,7 +515,7 @@ const SearchBar = () => {
           onChange={handleSearchTermChange}
           onKeyPress={handleSearchKeyPress}
           placeholder="Search restaurants, cuisine..."
-          className="w-full pl-10 pr-4 py-3 rounded-xl outline-none transition-all duration-200 font-medium placeholder:text-gray-400 dark:placeholder:text-gray-500 bg-white dark:bg-bgdarktheme2 text-gray-900 dark:text-white"
+          className="w-full pl-10 pr-4 py-3 cursor-pointer rounded-xl outline-none transition-all duration-200 font-medium placeholder:text-gray-400 dark:placeholder:text-gray-500 bg-white dark:bg-bgdarktheme2 text-gray-900 dark:text-white"
           onFocus={handleFocus}
           onBlur={handleBlur}
         />
@@ -434,37 +525,59 @@ const SearchBar = () => {
             className="absolute left-0 right-0 mt-2 bg-white dark:bg-bgdarktheme shadow-2xl dark:shadow-[0_10px_15px_-3px_rgba(0,0,0,0.4)] rounded-xl overflow-hidden z-50 max-h-[200px] overflow-y-auto"
             role="listbox"
           >
+            <li className="px-3 py-2.5 hover:bg-softgreentheme flex items-center cursor-pointer transition-colors duration-150">
+              <Store className="w-5 h-5 mr-3 text-greentheme" />
+              <span className="font-medium  dark:text-white">View All Restaurants</span>
+            </li>
             <div className="p-3 ">
-              <p className="font-semibold text-bgbg-bgdarktheme dark:text-white text-sm">
-                {searchTerm.trim() ? "Suggestions" : "Popular Searches"}
+              <p className="font-semibold text-left text-bgbg-bgdarktheme dark:text-white text-sm">
+                {searchTerm.trim() ? "Suggestions" : "Trending on Tabla.ma"}
               </p>
             </div>
-            {suggestions.map((suggestion, index) => (
-              <li
-                key={`${suggestion}-${index}`}
-                className={`px-3 py-2.5 flex items-center cursor-pointer transition-colors duration-150 ${
-                  index === selectedSuggestionIndex 
-                    ? 'bg-green-50 dark:bg-green-900/20' 
-                    : 'hover:bg-gray-50 dark:hover:bg-bgdarktheme2'
-                }`}
-                onMouseDown={() => handleSuggestionClick(suggestion)}
-                onMouseEnter={() => setSelectedSuggestionIndex(index)}
-                role="option"
-                aria-selected={searchTerm === suggestion}
-              >
-                <span className="text-green-600 mr-3">
-                  <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path
-                      fillRule="evenodd"
-                      clipRule="evenodd"
-                      d="M9.91669 0.166687C15.3015 0.166687 19.6667 4.53191 19.6667 9.91669C19.6667 12.2185 18.869 14.3341 17.535 16.002L21.5161 19.984C21.9391 20.4071 21.9391 21.093 21.5161 21.5161C21.1255 21.9066 20.511 21.9366 20.086 21.6062L19.984 21.5161L16.002 17.535C14.3341 18.869 12.2185 19.6667 9.91669 19.6667C4.53191 19.6667 0.166687 15.3015 0.166687 9.91669C0.166687 4.53191 4.53191 0.166687 9.91669 0.166687ZM9.91669 2.33335C5.72853 2.33335 2.33335 5.72853 2.33335 9.91669C2.33335 14.1048 5.72853 17.5 9.91669 17.5C14.1048 17.5 17.5 14.1048 17.5 9.91669C17.5 5.72853 14.1048 2.33335 9.91669 2.33335Z"
-                      className="fill-gray-400 dark:fill-gray-500"
-                    />
-                  </svg>
-                </span>
-                <span className="font-medium text-bgbg-bgdarktheme2 dark:text-white">{suggestion}</span>
-              </li>
-            ))}
+            {suggestions.map((suggestion, index) => {
+              // Select icon based on category
+              let IconComponent = Star; // Default icon
+              switch (suggestion.category) {
+                case 'Cuisine':
+                  IconComponent = Utensils;
+                  break;
+                case 'Offer':
+                  IconComponent = Gift;
+                  break;
+                case 'Dish':
+                  IconComponent = ChefHat;
+                  break;
+                case 'Moments':
+                  IconComponent = Calendar;
+                  break;
+                case 'Recommended by Tabla.ma':
+                  IconComponent = Heart;
+                  break;
+                default:
+                  IconComponent = Star;
+              }
+
+              return (
+                <li
+                  key={`${suggestion.id}-${index}`}
+                  className={`px-3 py-2.5 flex items-center cursor-pointer transition-colors duration-150 ${
+                    index === selectedSuggestionIndex 
+                      ? 'bg-green-50 dark:bg-green-900/20' 
+                      : 'hover:bg-gray-50 dark:hover:bg-bgdarktheme2'
+                  }`}
+                  onMouseDown={() => handleSuggestionClick(suggestion)}
+                  onMouseEnter={() => setSelectedSuggestionIndex(index)}
+                  role="option"
+                  aria-selected={searchTerm === suggestion.word}
+                >
+                  <span className="text-greentheme mr-3">
+                    <IconComponent />
+                  </span>
+                  <span className="font-medium text-bgbg-bgdarktheme2 dark:text-white">{suggestion.word}</span>
+                  <span className="text-xs text-gray-500 ml-auto">{suggestion.category}</span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

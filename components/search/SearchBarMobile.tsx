@@ -5,6 +5,15 @@ import { useState, useRef, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import { Button } from "../ui/Button"
 import { useCities } from "../../hooks/UseCities"
+import { 
+  Utensils, Gift, ChefHat, Calendar, Heart, Star, Navigation
+} from "lucide-react"
+
+interface Suggestion {
+  id: string | number
+  word: string
+  category: 'Cuisine' | 'Offer' | 'Dish' | 'Moments' | 'Recommended by Tabla.ma'
+}
 
 const SearchBarMobile = () => {
   const searchParams = useSearchParams()
@@ -23,11 +32,47 @@ const SearchBarMobile = () => {
   const [isFocused, setIsFocused] = useState(false)
   const [isCityFocused, setIsCityFocused] = useState(false)
 
-  // Local data sources
-  const cuisineDataSource = ["Greek", "Syrian", "Moroccan", "French", "Italian", "Pizza", "Sushi", "Burger"]
+  // Categorized search suggestions
+  const searchSuggestions: Suggestion[] = [
+    // Cuisine suggestions
+    { id: 17, word: "Date Night", category: "Moments" },
+    { id: 25, word: "Rooftop", category: "Recommended by Tabla.ma" },
+    { id: 1, word: "Italian", category: "Cuisine" },
+    { id: 12, word: "Ramen", category: "Dish" },
+    { id: 10, word: "Pasta", category: "Dish" },
+    { id: 18, word: "Business Lunch", category: "Moments" },
+    { id: 3, word: "Mexican", category: "Cuisine" },
+    { id: 4, word: "Japanese", category: "Cuisine" },
+    { id: 5, word: "French", category: "Cuisine" },
+    
+    // Dish suggestions
+    { id: 7, word: "Pizza", category: "Dish" },
+    { id: 8, word: "Sushi", category: "Dish" },
+    { id: 15, word: "Weekend Special", category: "Offer" },
+    { id: 11, word: "Tacos", category: "Dish" },
+    
+    // Offer suggestions
+    { id: 13, word: "Happy Hour", category: "Offer" },
+    { id: 6, word: "Mediterranean", category: "Cuisine" },
+    { id: 22, word: "Seafood", category: "Recommended by Tabla.ma" },
+    { id: 14, word: "Lunch Deal", category: "Offer" },
+    { id: 16, word: "Family Package", category: "Offer" },
+    
+    { id: 2, word: "Chinese", category: "Cuisine" },
+    // Moments suggestions
+    { id: 19, word: "Family Dinner", category: "Moments" },
+    { id: 24, word: "Fine Dining", category: "Recommended by Tabla.ma" },
+    { id: 20, word: "Birthday Celebration", category: "Moments" },
+    { id: 23, word: "Vegetarian", category: "Recommended by Tabla.ma" },
+    { id: 21, word: "Anniversary", category: "Moments" },
+    
+    // Recommended by Tabla.ma
+    { id: 26, word: "Live Music", category: "Recommended by Tabla.ma" },
+    { id: 9, word: "Burger", category: "Dish" }
+  ]
 
   const [citySuggestions, setCitySuggestions] = useState(cities)
-  const [suggestions, setSuggestions] = useState(cuisineDataSource)
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([])
 
   const searchInputRef = useRef<HTMLInputElement>(null)
   const cityInputRef = useRef<HTMLInputElement>(null)
@@ -35,6 +80,13 @@ const SearchBarMobile = () => {
   // Initialize values from URL params
   useEffect(() => {
     if (cityParam && cities.length > 0) {
+      // Handle "Near me" special case
+      if (cityParam === 'near-me' || cityParam.toLowerCase() === 'near me') {
+        setCityValue('Near me')
+        setSelectedCityId('near-me')
+        return
+      }
+      
       const cityById = cities.find((c) => String(c.id) === cityParam)
       if (cityById) {
         setCityValue(cityById.name)
@@ -54,20 +106,37 @@ const SearchBarMobile = () => {
     setCitySuggestions(cities)
   }, [cities])
 
-  const filterSuggestions = (term: string, data: string[]) => {
+  const filterSuggestions = (term: string, data: Suggestion[]) => {
     if (!term.trim()) return data
-    return data.filter((item) => item.toLowerCase().includes(term.toLowerCase()))
+    return data.filter((item) => item.word.toLowerCase().includes(term.toLowerCase()))
   }
 
   const filterCitySuggestions = (term: string, data: typeof cities) => {
-    if (!term.trim()) return data
-    return data.filter((city) => city.name.toLowerCase().includes(term.toLowerCase()))
+    const filteredCities = !term.trim() 
+      ? data.slice(0, 8) // Show first 8 cities when empty
+      : data.filter((city) => city.name.toLowerCase().includes(term.toLowerCase())).slice(0, 8)
+    
+    // Create "Near me" option
+    const nearMeOption = {
+      id: 'near-me',
+      name: 'Near me',
+      image: null,
+      boundary: null,
+      country: 'current-location'
+    }
+    
+    // Add "Near me" at the top if search term is empty or matches "near"
+    if (!term.trim() || 'near me'.includes(term.toLowerCase())) {
+      return [nearMeOption, ...filteredCities]
+    }
+    
+    return filteredCities
   }
 
   const handleSearchTermChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newSearchTerm = event.target.value
     setSearchTerm(newSearchTerm)
-    setSuggestions(filterSuggestions(newSearchTerm, cuisineDataSource))
+    setSuggestions(filterSuggestions(newSearchTerm, searchSuggestions))
   }
 
   const handleCityTermChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -76,7 +145,12 @@ const SearchBarMobile = () => {
     setCitySuggestions(filterCitySuggestions(newCityTerm, cities))
   }
 
-  const handleFocus = () => setIsFocused(true)
+  const handleFocus = () => {
+    setIsFocused(true)
+    if (!searchTerm.trim()) {
+      setSuggestions(searchSuggestions.slice(0, 8))
+    }
+  }
   const handleBlur = () => setIsFocused(false)
   const handleCityFocus = () => setIsCityFocused(true)
   const handleCityBlur = () => setIsCityFocused(false)
@@ -87,22 +161,29 @@ const SearchBarMobile = () => {
     window.location.href = searchUrl
   }
 
-  const handleSuggestionClick = (suggestion: string) => {
-    setSearchTerm(suggestion)
-    setSearchValue(suggestion)
+  const handleSuggestionClick = (suggestion: Suggestion) => {
+    setSearchTerm(suggestion.word)
+    setSearchValue(suggestion.word)
     setIsSearch(false)
     setIsFocused(false)
     
     // Automatically perform search when suggestion is selected
     setTimeout(() => {
-      performSearch(suggestion)
+      performSearch(suggestion.word)
     }, 100)
   }
 
   const handleCitySuggestionClick = (city: (typeof cities)[0]) => {
-    setCityTerm(city.name)
-    setCityValue(city.name)
-    setSelectedCityId(city.id)
+    // Handle "Near me" option
+    if (city.id === 'near-me') {
+      setCityTerm('Near me')
+      setCityValue('Near me')
+      setSelectedCityId('near-me')
+    } else {
+      setCityTerm(city.name)
+      setCityValue(city.name)
+      setSelectedCityId(city.id)
+    }
     setIsCity(false)
     setIsCityFocused(false)
     
@@ -248,14 +329,18 @@ const SearchBarMobile = () => {
                       aria-selected={cityTerm === city.name}
                     >
                       <span className="text-greentheme mr-3 flex-shrink-0">
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path
-                            fillRule="evenodd"
-                            clipRule="evenodd"
-                            d="M9 0C10.6569 0 12 1.34315 12 3L12.0001 4.17067C12.3128 4.06014 12.6494 4 13 4H17C18.6569 4 20 5.34315 20 7V17C20 18.6569 18.6569 20 17 20H3C1.34315 20 0 18.6569 0 17V3C0 1.34315 1.34315 0 3 0H9ZM9 2H3C2.44772 2 2 2.44772 2 3V17C2 17.5523 2.44772 18 3 18H10V3C10 2.44772 9.55229 2 9 2ZM17 6H13C12.4477 6 12 6.44772 12 7V18H17C17.5523 18 18 17.5523 18 17V7C18 6.44772 17.5523 6 17 6ZM7 12C7.55228 12 8 12.4477 8 13C8 13.5523 7.55228 14 7 14H5C4.44772 14 4 13.5523 4 13C4 12.4477 4.44772 12 5 12H7ZM16 12C16.5523 12 17 12.4477 17 13C17 13.5523 16.5523 14 16 14H14C13.4477 14 13 13.5523 13 13C13 12.4477 13.4477 12 14 12H16ZM7 8C7.55228 8 8 8.44771 8 9C8 9.55229 7.55228 10 7 10H5C4.44772 10 4 9.55229 4 9C4 8.44771 4.44772 8 5 8H7ZM16 8C16.5523 8 17 8.44771 17 9C17 9.55229 16.5523 10 16 10H14C13.4477 10 13 9.55229 13 9C13 8.44771 13.4477 8 14 8H16ZM7 4C7.55228 4 8 4.44772 8 5C8 5.55228 7.55228 6 7 6H5C4.44772 6 4 5.55228 4 5C4 4.44772 4.44772 4 5 4H7Z"
-                            fill="currentColor"
-                          />
-                        </svg>
+                        {city.id === 'near-me' ? (
+                          <Navigation width="20" height="20" />
+                        ) : (
+                          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path
+                              fillRule="evenodd"
+                              clipRule="evenodd"
+                              d="M9 0C10.6569 0 12 1.34315 12 3L12.0001 4.17067C12.3128 4.06014 12.6494 4 13 4H17C18.6569 4 20 5.34315 20 7V17C20 18.6569 18.6569 20 17 20H3C1.34315 20 0 18.6569 0 17V3C0 1.34315 1.34315 0 3 0H9ZM9 2H3C2.44772 2 2 2.44772 2 3V17C2 17.5523 2.44772 18 3 18H10V3C10 2.44772 9.55229 2 9 2ZM17 6H13C12.4477 6 12 6.44772 12 7V18H17C17.5523 18 18 17.5523 18 17V7C18 6.44772 17.5523 6 17 6ZM7 12C7.55228 12 8 12.4477 8 13C8 13.5523 7.55228 14 7 14H5C4.44772 14 4 13.5523 4 13C4 12.4477 4.44772 12 5 12H7ZM16 12C16.5523 12 17 12.4477 17 13C17 13.5523 16.5523 14 16 14H14C13.4477 14 13 13.5523 13 13C13 12.4477 13.4477 12 14 12H16ZM7 8C7.55228 8 8 8.44771 8 9C8 9.55229 7.55228 10 7 10H5C4.44772 10 4 9.55229 4 9C4 8.44771 4.44772 8 5 8H7ZM16 8C16.5523 8 17 8.44771 17 9C17 9.55229 16.5523 10 16 10H14C13.4477 10 13 9.55229 13 9C13 8.44771 13.4477 8 14 8H16ZM7 4C7.55228 4 8 4.44772 8 5C8 5.55228 7.55228 6 7 6H5C4.44772 6 4 5.55228 4 5C4 4.44772 4.44772 4 5 4H7Z"
+                              fill="currentColor"
+                            />
+                          </svg>
+                        )}
                       </span>
                       <span className="font-medium text-blacktheme dark:text-textdarktheme">{city.name}</span>
                     </li>
@@ -323,27 +408,47 @@ const SearchBarMobile = () => {
               <div className="mt-2">
                 <h3 className="font-semibold text-blacktheme dark:text-textdarktheme mb-2 px-1">Suggestions</h3>
                 <ul className="space-y-1" role="listbox">
-                  {suggestions.map((suggestion) => (
-                    <li
-                      key={suggestion}
-                      className="px-3 py-3 hover:bg-softgreytheme dark:hover:bg-bgdarktheme2 flex items-center cursor-pointer rounded-xl transition-colors duration-150"
-                      onMouseDown={() => handleSuggestionClick(suggestion)}
-                      role="option"
-                      aria-selected={searchTerm === suggestion}
-                    >
-                      <span className="text-greentheme mr-3 flex-shrink-0">
-                        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path
-                            fillRule="evenodd"
-                            clipRule="evenodd"
-                            d="M9.91669 0.166687C15.3015 0.166687 19.6667 4.53191 19.6667 9.91669C19.6667 12.2185 18.869 14.3341 17.535 16.002L21.5161 19.984C21.9391 20.4071 21.9391 21.093 21.5161 21.5161C21.1255 21.9066 20.511 21.9366 20.086 21.6062L19.984 21.5161L16.002 17.535C14.3341 18.869 12.2185 19.6667 9.91669 19.6667C4.53191 19.6667 0.166687 15.3015 0.166687 9.91669C0.166687 4.53191 4.53191 0.166687 9.91669 0.166687ZM9.91669 2.33335C5.72853 2.33335 2.33335 5.72853 2.33335 9.91669C2.33335 14.1048 5.72853 17.5 9.91669 17.5C14.1048 17.5 17.5 14.1048 17.5 9.91669C17.5 5.72853 14.1048 2.33335 9.91669 2.33335Z"
-                            fill="currentColor"
-                          />
-                        </svg>
-                      </span>
-                      <span className="font-medium text-blacktheme dark:text-textdarktheme">{suggestion}</span>
-                    </li>
-                  ))}
+                  {suggestions.map((suggestion) => {
+                    // Select icon based on category
+                    let IconComponent = Star; // Default icon
+                    switch (suggestion.category) {
+                      case 'Cuisine':
+                        IconComponent = Utensils;
+                        break;
+                      case 'Offer':
+                        IconComponent = Gift;
+                        break;
+                      case 'Dish':
+                        IconComponent = ChefHat;
+                        break;
+                      case 'Moments':
+                        IconComponent = Calendar;
+                        break;
+                      case 'Recommended by Tabla.ma':
+                        IconComponent = Heart;
+                        break;
+                      default:
+                        IconComponent = Star;
+                    }
+
+                    return (
+                      <li
+                        key={`${suggestion.id}-${suggestion.word}`}
+                        className="px-3 py-3 hover:bg-softgreytheme dark:hover:bg-bgdarktheme2 flex items-center cursor-pointer rounded-xl transition-colors duration-150"
+                        onMouseDown={() => handleSuggestionClick(suggestion)}
+                        role="option"
+                        aria-selected={searchTerm === suggestion.word}
+                      >
+                        <span className="text-greentheme mr-3 flex-shrink-0">
+                          <IconComponent width="20" height="20" />
+                        </span>
+                        <div className="flex-1">
+                          <span className="font-medium text-blacktheme dark:text-textdarktheme">{suggestion.word}</span>
+                          <span className="text-xs text-gray-500 ml-2">{suggestion.category}</span>
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             </div>
