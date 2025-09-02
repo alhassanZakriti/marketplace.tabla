@@ -18,9 +18,10 @@ interface BookingFormProps {
     guests: number
     offer_id?: number | null
   }
+  continueAsGuest?: boolean
 }
 
-export default function BookingForm({ isOpen, onClose, onSuccess, restaurantId, bookingData }: BookingFormProps) {
+export default function BookingForm({ isOpen, onClose, onSuccess, restaurantId, bookingData, continueAsGuest = false }: BookingFormProps) {
   const { isAuthenticated, user } = useAuth()
   const createBookingMutation = useCreateBooking()
   
@@ -190,7 +191,7 @@ export default function BookingForm({ isOpen, onClose, onSuccess, restaurantId, 
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-softgreytheme dark:border-subblack sticky top-0 bg-whitetheme dark:bg-darkthemeitems">
           <h2 className="text-xl font-bold text-blacktheme dark:text-textdarktheme">
-            Complete Your Reservation
+            {continueAsGuest ? "Complete Your Reservation as Guest" : "Complete Your Reservation"}
           </h2>
           <button
             onClick={onClose}
@@ -256,6 +257,14 @@ export default function BookingForm({ isOpen, onClose, onSuccess, restaurantId, 
                   <p className="text-greentheme text-sm flex items-center">
                     <User className="h-4 w-4 mr-2" />
                     Your personal information has been automatically filled from your profile.
+                  </p>
+                </div>
+              )}
+              {continueAsGuest && !isAuthenticated && (
+                <div className="mb-4 p-3 bg-softgreytheme dark:bg-bgdarktheme2 border border-softgreytheme dark:border-subblack rounded-lg">
+                  <p className="text-greytheme dark:text-textdarktheme text-sm flex items-center">
+                    <User className="h-4 w-4 mr-2" />
+                    Please fill in your personal information to complete the reservation as a guest.
                   </p>
                 </div>
               )}

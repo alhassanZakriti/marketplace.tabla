@@ -2,6 +2,7 @@
 import { useState, useEffect, Suspense } from "react"
 import SearchBar from "../../components/search/SearchBar"
 import SearchBarMobile from "../../components/search/SearchBarMobile"
+import BasicInfoFilters from "../../components/search/BasicInfoFilters"
 import FiltersSection, { type FilterOptions } from "../../components/search/FilterSection"
 import RestaurantList from "../../components/search/RestaurantList"
 import { MapComponent } from "../../components/search/MapSection"
@@ -26,9 +27,17 @@ function SearchContent() {
   const [isMobile, setIsMobile] = useState(false)
   const [shownFilters, setShownFilters] = useState(false)
   const [showReservationProcess, setShowReservationProcess] = useState(false)
+  const [showBasicInfoFilters, setShowBasicInfoFilters] = useState<number | false>(false)
+  const [filterStartStep, setFilterStartStep] = useState<'date' | 'time' | 'guests'>('date')
 
   type SelectedData = {
     reserveDate: string
+    time: string
+    guests: number
+  }
+
+  type BasicFilterData = {
+    date: string
     time: string
     guests: number
   }
@@ -38,6 +47,8 @@ function SearchContent() {
     time: "--:--",
     guests: 0,
   })
+
+  const [basicFilters, setBasicFilters] = useState<BasicFilterData | null>(null)
 
   const searchParams = useSearchParams()
   const cityParam = searchParams.get("city") || ""
@@ -177,6 +188,58 @@ function SearchContent() {
     setFilters(newFilters)
   }
 
+  const handleBasicFiltersApply = (filters: BasicFilterData | null) => {
+    setBasicFilters(filters)
+    // Update the main filters with the basic filter data
+    if (filters) {
+      setFilters(prev => ({
+        ...prev,
+        date: filters.date,
+        time: filters.time,
+        partySize: filters.guests
+      }))
+    } else {
+      // Clear date/time/party size from main filters
+      setFilters(prev => ({
+        ...prev,
+        date: null,
+        time: null,
+        partySize: null
+      }))
+    }
+  }
+
+  const getDisplayDate = () => {
+    if (basicFilters?.date) {
+      return new Date(basicFilters.date).toLocaleDateString('en-US', {
+        month: '2-digit',
+        day: '2-digit',
+        year: 'numeric'
+      })
+    }
+    return new Date().toLocaleDateString('en-US', {
+      month: '2-digit',
+      day: '2-digit',
+      year: 'numeric'
+    })
+  }
+
+  const getDisplayTime = () => {
+    if (basicFilters?.time) {
+      return basicFilters.time
+    }
+    const now = new Date()
+    const nextHour = new Date(now.getTime() + 60 * 60 * 1000)
+    return `${nextHour.getHours().toString().padStart(2, '0')}:00`
+  }
+
+  const getDisplayGuests = () => {
+    if (basicFilters?.guests) {
+      return basicFilters.guests
+    }
+    return 2
+  }
+
   const cityDisplayName = getCityDisplayName()
 
   return (
@@ -185,6 +248,17 @@ function SearchContent() {
         {showReservationProcess && (
           <ReservationProcess getDateTime={setData} onClick={() => setShowReservationProcess(false)} />
         )}
+        
+        {showBasicInfoFilters && (
+          <BasicInfoFilters
+            isOpen={!!showBasicInfoFilters}
+            startStep={showBasicInfoFilters === 1 ? 'date' : showBasicInfoFilters === 2 ? 'time' : showBasicInfoFilters === 3 ? 'guests' : 'date'}
+            onClose={() => setShowBasicInfoFilters(false)}
+            onApplyFilters={handleBasicFiltersApply}
+            initialFilters={basicFilters}
+          />
+        )}
+
         <div className="container mx-auto px-4 py-6">
           <div className="min-h-screen max-w-[1200px] mx-auto">
 
@@ -199,30 +273,36 @@ function SearchContent() {
             </div>
               
               <div className="flex sm:flex-row flex-col justify-start items-center ">
-                <div className="bg-whitetheme lg:w-[40vw] w-full sm:mr-10  dark:bg-darkthemeitems rounded-lg mb-3 shadow-sm">
-                  <div
-                    onClick={() => setShowReservationProcess(true)}
-                    className="flex justify-around items-center cursor-pointer p-1 h-[4em] hover:border-softgreentheme border-2 border-[#00000000] hover:bg-softgreytheme dark:hover:bg-bgdarktheme2 rounded-md transition-colors"
-                  >
-                    <div className="flex items-center gap-2">
+                <div className="bg-whitetheme lg:w-[40vw] w-full sm:mr-10 dark:bg-darkthemeitems rounded-lg mb-3 shadow-sm">
+                  <div className="flex justify-around items-center p-1 h-[4em] gap-2">
+                    <div 
+                      onClick={() => setShowBasicInfoFilters(1)}
+                      className="flex-1 flex items-center justify-center gap-2 cursor-pointer p-2 hover:border-softgreentheme border-2 border-[#00000000] hover:bg-softgreytheme dark:hover:bg-bgdarktheme2 rounded-md transition-colors"
+                    >
                       <span className="font-[600] dark:text-white mr-2 text-blacktheme">
                         <Calendar size={27} className="rounded-[100%] w-8 h-8 btn-secondary p-2 m-0 text-yellowtheme" />
                       </span>
                       <span className="font-medium text-blacktheme dark:text-white">
-                        {data.reserveDate || "----/--/--"}
+                        {getDisplayDate()}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div 
+                      onClick={() => setShowBasicInfoFilters(2)}
+                      className="flex-1 flex items-center justify-center gap-2 cursor-pointer p-2 hover:border-softgreentheme border-2 border-[#00000000] hover:bg-softgreytheme dark:hover:bg-bgdarktheme2 rounded-md transition-colors"
+                    >
                       <span className="font-[600] dark:text-white mr-2 text-blacktheme">
                         <Clock size={27} className="rounded-[100%] w-8 h-8 btn-secondary p-2 m-0 text-yellowtheme" />
                       </span>
-                      <span className="font-medium text-blacktheme dark:text-white">{data.time || "--:--"}</span>
+                      <span className="font-medium text-blacktheme dark:text-white">{getDisplayTime()}</span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div 
+                      onClick={() => setShowBasicInfoFilters(3)}
+                      className="flex-1 flex items-center gap-2 justify-center cursor-pointer p-2 hover:border-softgreentheme border-2 border-[#00000000] hover:bg-softgreytheme dark:hover:bg-bgdarktheme2 rounded-md transition-colors"
+                    >
                       <span className="font-[600] dark:text-white mr-2 text-blacktheme">
                         <Users size={27} className="rounded-[100%] w-8 h-8 btn-secondary p-2 m-0 text-yellowtheme" />
                       </span>
-                      <span className="font-medium text-blacktheme dark:text-white">{data.guests || "--"}</span>
+                      <span className="font-medium text-blacktheme dark:text-white">{getDisplayGuests()}</span>
                     </div>
                   </div>
                 </div>

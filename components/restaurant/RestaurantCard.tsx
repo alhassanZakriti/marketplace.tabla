@@ -3,9 +3,20 @@
 import type React from "react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Star, Clock, Tag, Heart } from "lucide-react"
+import { Star, Clock, Tag, Heart, Percent } from "lucide-react"
 import Link from "next/link"
 import { useLikeRestaurant, useUnlikeRestaurant, useManualInvalidation } from "@/hooks/api"
+
+interface OfferType {
+  id: number
+  title: string
+  description: string
+  percentage: number
+  valid_from_date: string
+  valid_to_date: string
+  time_range_from: string
+  time_range_to: string
+}
 
 interface RestaurantCardProps {
   id: number
@@ -19,6 +30,7 @@ interface RestaurantCardProps {
   onToggleFavorite?: (id: number, isFavorite: boolean) => void
   isAvailable?: boolean
   availabilityLoading?: boolean
+  offers?: OfferType[]
 }
 
 export default function RestaurantCard({
@@ -33,6 +45,7 @@ export default function RestaurantCard({
   onToggleFavorite,
   isAvailable,
   availabilityLoading,
+  offers,
 }: RestaurantCardProps) {
   const { t } = useTranslation()
   const [isImageLoaded, setIsImageLoaded] = useState(false)
@@ -44,6 +57,34 @@ export default function RestaurantCard({
   const { onRestaurantInteraction } = useManualInvalidation()
   
   const isToggling = likeRestaurantMutation.isPending || unlikeRestaurantMutation.isPending
+
+  // Helper function to get offers information
+  const getOffersInfo = (offers?: OfferType[]) => {
+    if (!offers || offers.length === 0) {
+      return { hasOffers: false, topOffer: null, totalOffers: 0 }
+    }
+
+    // Filter valid offers (current date within valid range)
+    const currentDate = new Date()
+    const validOffers = offers.filter(offer => {
+      const validFrom = new Date(offer.valid_from_date)
+      const validTo = new Date(offer.valid_to_date)
+      return currentDate >= validFrom && currentDate <= validTo
+    })
+
+    if (validOffers.length === 0) {
+      return { hasOffers: false, topOffer: null, totalOffers: 0 }
+    }
+
+    // Get the offer with the highest percentage
+    const topOffer = validOffers.reduce((max, offer) => 
+      offer.percentage > max.percentage ? offer : max
+    )
+
+    return { hasOffers: true, topOffer, totalOffers: validOffers.length }
+  }
+
+  const offersInfo = getOffersInfo(offers)
 
   const handleFavoriteClick = async (e: React.MouseEvent) => {
     e.preventDefault() // Prevent the Link navigation
@@ -124,14 +165,26 @@ export default function RestaurantCard({
 
           {/* Status Badge */}
           <div className="absolute right-3 top-3 flex flex-col gap-1">
-            {/* Operating Status */}
+            {/* Offers Status */}
             <div
               className={`flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${
-                isOpen ? "bg-greentheme/90 text-white" : "bg-red-500/90 text-white"
+                offersInfo.hasOffers ? "bg-greentheme/90 text-white" : "bg-greytheme/90 text-white"
               }`}
             >
-              <Clock className="h-3 w-3" />
-              <span>{isOpen ? t("restaurant.status.open", "Open") : t("restaurant.status.closed", "Closed")}</span>
+              {offersInfo.hasOffers ? (
+                <>
+                  <Percent className="h-3 w-3" />
+                  <span>{offersInfo.topOffer!.percentage}% OFF</span>
+                  {offersInfo.totalOffers > 1 && (
+                    <span className="opacity-80">+{offersInfo.totalOffers - 1}</span>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Tag className="h-3 w-3" />
+                  <span>{t("restaurant.offers.none", "No offers")}</span>
+                </>
+              )}
             </div>
             
             {/* Availability Status */}

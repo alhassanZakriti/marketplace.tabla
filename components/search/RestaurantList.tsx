@@ -1,6 +1,6 @@
 "use client"
 import type React from "react"
-import { Star, Clock } from 'lucide-react'
+import { Star, Clock, Tag, Percent } from 'lucide-react'
 import Link from "next/link"
 import Image from "next/image"
 import PlaceHolder from "../../public/placeholder-300x200.png"
@@ -20,6 +20,18 @@ interface Restaurant {
   isOpen?: boolean
   priceRange?: string
   coordinates?: { lat: number; lng: number }
+  offers?: OfferType[]
+}
+
+interface OfferType {
+  id: number
+  title: string
+  description: string
+  percentage: number
+  valid_from_date: string
+  valid_to_date: string
+  time_range_from: string
+  time_range_to: string
 }
 
 export interface FilterOptions {
@@ -83,6 +95,32 @@ const RestaurantList: React.FC<RestaurantListProps> = ({
     return t(`search.filters.categories.${category.toLowerCase()}`, { defaultValue: category })
   }
 
+  // Helper function to get offers information
+  const getOffersInfo = (offers?: OfferType[]) => {
+    if (!offers || offers.length === 0) {
+      return { hasOffers: false, topOffer: null, totalOffers: 0 }
+    }
+
+    // Filter valid offers (current date within valid range)
+    const currentDate = new Date()
+    const validOffers = offers.filter(offer => {
+      const validFrom = new Date(offer.valid_from_date)
+      const validTo = new Date(offer.valid_to_date)
+      return currentDate >= validFrom && currentDate <= validTo
+    })
+
+    if (validOffers.length === 0) {
+      return { hasOffers: false, topOffer: null, totalOffers: 0 }
+    }
+
+    // Get the offer with the highest percentage
+    const topOffer = validOffers.reduce((max, offer) => 
+      offer.percentage > max.percentage ? offer : max
+    )
+
+    return { hasOffers: true, topOffer, totalOffers: validOffers.length }
+  }
+
   // Enhanced filtering logic
   const filteredRestaurants = restaurants.filter((restaurant) => {
     // Category filter
@@ -144,6 +182,7 @@ const RestaurantList: React.FC<RestaurantListProps> = ({
         const priceRange = getSafePriceRange(restaurant.priceRange)
         const isOpen = getIsOpen(restaurant.status, restaurant.isOpen)
         const isSelected = selectedRestaurantId === String(restaurant.id)
+        const offersInfo = getOffersInfo(restaurant.offers)
 
         return (
           <div
@@ -202,12 +241,28 @@ const RestaurantList: React.FC<RestaurantListProps> = ({
                 </div>
                 <div className="flex justify-between items-center mt-2">
                   <div className="flex items-center gap-3">
-                    {/* Operating Status */}
+                    {/* Offers Information */}
                     <div className="flex items-center">
-                      <Clock size={16} className={isOpen ? "text-greentheme" : "text-redtheme"} />
-                      <span className={`ml-1 text-sm ${isOpen ? "text-greentheme" : "text-redtheme"}`}>
-                        {isOpen ? t("search.restaurantList.openNow") : t("search.restaurantList.closed")}
-                      </span>
+                      {offersInfo.hasOffers ? (
+                        <>
+                          <Percent size={16} className="text-greentheme" />
+                          <span className="ml-1 text-sm text-greentheme font-medium">
+                            {offersInfo.topOffer!.percentage}% OFF
+                          </span>
+                          {offersInfo.totalOffers > 1 && (
+                            <span className="ml-1 text-xs text-greytheme dark:text-textdarktheme/70">
+                              +{offersInfo.totalOffers - 1} more
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <Tag size={16} className="text-greytheme dark:text-textdarktheme/70" />
+                          <span className="ml-1 text-sm text-greytheme dark:text-textdarktheme/70">
+                            No offers available
+                          </span>
+                        </>
+                      )}
                     </div>
                     
                     {/* Availability Status */}

@@ -3,6 +3,7 @@
 import type React from "react"
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { format } from "date-fns"
+import { X, Calendar, Clock, Users, User } from "lucide-react"
 import OurCalendar from "../calendar/OurCalendar"
 import BookingForm from "./BookingForm"
 import { useRestaurantAvailability } from "@/hooks/api/useRestaurants"
@@ -109,6 +110,8 @@ const ReservationProcess: React.FC<ReservationProcessProps> = (props) => {
   )
   const [showBookingForm, setShowBookingForm] = useState(false)
   const [showAuthPopup, setShowAuthPopup] = useState(false)
+  const [showAuthOptions, setShowAuthOptions] = useState(false)
+  const [continueAsGuest, setContinueAsGuest] = useState(false)
 
   // Hooks for data management
   const { onReservationChange } = useManualInvalidation()
@@ -359,11 +362,22 @@ const ReservationProcess: React.FC<ReservationProcessProps> = (props) => {
   const handleConfirmClick = () => {
     // Check if user is authenticated before proceeding
     if (!isAuthenticated) {
-      setShowAuthPopup(true)
+      setShowAuthOptions(true)
       return
     }
     
     // If user is authenticated, proceed with booking
+    proceedWithBooking()
+  }
+
+  const handleLoginChoice = () => {
+    setShowAuthOptions(false)
+    setShowAuthPopup(true)
+  }
+
+  const handleGuestChoice = () => {
+    setShowAuthOptions(false)
+    setContinueAsGuest(true)
     proceedWithBooking()
   }
 
@@ -379,10 +393,15 @@ const ReservationProcess: React.FC<ReservationProcessProps> = (props) => {
 
   const handleAuthSuccess = () => {
     setShowAuthPopup(false)
+    setShowAuthOptions(false)
     // Refresh data after successful authentication
     onReservationChange()
     // After successful authentication, proceed with booking
     proceedWithBooking()
+  }
+
+  const handleCloseAuthOptions = () => {
+    setShowAuthOptions(false)
   }
 
   // Helper function to check if an offer is valid for the selected date and time
@@ -424,11 +443,13 @@ const ReservationProcess: React.FC<ReservationProcessProps> = (props) => {
     onReservationChange(props.restaurantId)
     
     setShowBookingForm(false)
+    setContinueAsGuest(false) // Reset guest state on successful booking
     props.onClick() // Call the original onClick to close the reservation process
   }
 
   const handleBookingFormClose = () => {
     setShowBookingForm(false)
+    setContinueAsGuest(false) // Reset guest state when form is closed
   }
 
   // Helper function to format percentage
@@ -440,391 +461,544 @@ const ReservationProcess: React.FC<ReservationProcessProps> = (props) => {
   const validOffers = offers?.filter(isOfferValid) || []
 
   return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center">
+    <>
       {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-blacktheme/20 h-full backdrop-blur-sm transition-opacity duration-300"
-        onClick={props.onClick}
-      ></div>
-      <div
-        className={`popup z-[360] lt-sm:h-[70vh] sm:w-[30em] lt-sm:bottom-0 lt-sm:w-full rounded-[10px] bg-whitetheme dark:bg-bgdarktheme`}
-      >
-        <div className="flex justify-center gap-3 mt-[1em] px-2">
-          <span
-            className={activeTab === "date" ? "activetabb" : "p-[10px]"}
-            onClick={() => setActiveTab("date")}
-            id="date"
-          >
-            Date
-          </span>
-          <span
-            className={activeTab === "guest" ? "activetabb" : "p-[10px]"}
-            onClick={() => setActiveTab("guest")}
-            id="guest"
-          >
-            Guest
-          </span>
-          <span
-            className={activeTab === "time" ? "activetabb" : "p-[10px]"}
-            onClick={() => setActiveTab("time")}
-            id="time"
-          >
-            Time
-          </span>
-          <span
-            className={activeTab === "offers" ? "activetabb" : "p-[10px]"}
-            onClick={() => setActiveTab("offers")}
-            id="offers"
-          >
-            Offers
-          </span>
-        </div>
-        {activeTab === "date" && (
-          <div className="content">
-            <div className="text-[20px] text-left mx-[30px] mt-[1em] mb-[.5em] font-bold text-blacktheme dark:text-textdarktheme">
-              {selectedDate ? (
-                <>
-                  {format(selectedDate, "dd MMMM yyyy")} <span className="font-semibold">
-                    {format(selectedDate, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd") 
-                      ? "(Today - selected by default)" 
-                      : "has been selected"
-                    }
-                  </span>
-                </>
-              ) : (
-                <span className="font-semibold">Select a date</span>
-              )}
+      <div className="fixed inset-0 bg-blacktheme/40 dark:bg-blacktheme/60 backdrop-blur-sm z-40" onClick={props.onClick} />
+      
+      {/* Modal */}
+      <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+        <div className="bg-whitetheme dark:bg-bgdarktheme rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-softgreytheme dark:border-subblack">
+          
+          {/* Header */}
+          <div className="sticky top-0 bg-whitetheme dark:bg-bgdarktheme border-b border-softgreytheme dark:border-subblack p-6 rounded-t-2xl">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-blacktheme dark:text-textdarktheme">
+                Make Reservation
+              </h2>
+              <button
+                onClick={props.onClick}
+                className="p-2 hover:bg-softgreytheme dark:hover:bg-bgdarktheme2 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-greytheme dark:text-softwhitetheme" />
+              </button>
             </div>
-            {(isLoadingAvailability || isLoadingMonthlyAvailability) && props.restaurantId && (
-              <div className="text-center py-4">
-                <div className="text-greytheme dark:text-textdarktheme">Loading availability...</div>
+            
+            {/* Step Navigation */}
+            <div className="flex items-center justify-center mt-4">
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setActiveTab('date')}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                    activeTab === 'date' 
+                      ? 'bg-greentheme text-whitetheme' 
+                      : 'bg-softgreytheme dark:bg-subblack text-blacktheme dark:text-textdarktheme hover:bg-greentheme/50 hover:text-whitetheme'
+                  }`}
+                >
+                  Date
+                </button>
+                <button
+                  onClick={() => setActiveTab('guest')}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                    activeTab === 'guest' 
+                      ? 'bg-greentheme text-whitetheme' 
+                      : 'bg-softgreytheme dark:bg-subblack text-blacktheme dark:text-textdarktheme hover:bg-greentheme/50 hover:text-whitetheme'
+                  }`}
+                >
+                  Guests
+                </button>
+                <button
+                  onClick={() => setActiveTab('time')}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                    activeTab === 'time' 
+                      ? 'bg-greentheme text-whitetheme' 
+                      : 'bg-softgreytheme dark:bg-subblack text-blacktheme dark:text-textdarktheme hover:bg-greentheme/50 hover:text-whitetheme'
+                  }`}
+                >
+                  Time
+                </button>
+                <button
+                  onClick={() => setActiveTab('offers')}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                    activeTab === 'offers' 
+                      ? 'bg-greentheme text-whitetheme' 
+                      : 'bg-softgreytheme dark:bg-subblack text-blacktheme dark:text-textdarktheme hover:bg-greentheme/50 hover:text-whitetheme'
+                  }`}
+                >
+                  Offers
+                </button>
               </div>
-            )}
-            <OurCalendar 
-              forbidden={true} 
-              onClick={handleDateClick} 
-              isDateAvailable={isDateAvailable}
-            />
+            </div>
           </div>
-        )}
-        {activeTab === "time" && (
-          <div className="content">
-            <div className="text-[20px] text-left mx-[30px] mt-[1em] mb-[.5em] font-bold text-blacktheme dark:text-textdarktheme">
-              {selectedTime ? (
-                <>
-                  {selectedTime} <span className="font-semibold">
-                    {selectedTime === getDefaultTime() && !props.dateTime?.time
-                      ? "(Default next shift - selected automatically)"
-                      : "has been selected"
-                    }
-                  </span>
-                </>
-              ) : (
-                <span className="font-semibold">Select a time</span>
-              )}
-            </div>
-            {isLoadingTimeSlots && props.restaurantId && selectedDate && selectedGuests && (
-              <div className="text-center py-4">
-                <div className="text-greytheme dark:text-textdarktheme">Loading available time slots...</div>
-              </div>
-            )}
-            {timeSlotsError && props.restaurantId && selectedDate && selectedGuests && (
-              <div className="text-center py-8">
-                <div className="text-red-500 dark:text-red-400 mb-2">
-                  Error loading time slots
-                </div>
-                <div className="text-sm text-greytheme dark:text-textdarktheme">
-                  Using restaurant opening hours instead.
-                </div>
-              </div>
-            )}
-            {!isLoadingTimeSlots && props.restaurantId && selectedDate && selectedGuests && timeSlotsData && timeSlotsData.available_slots && timeSlotsData.available_slots.length === 0 && (
-              <div className="text-center py-8">
-                <div className="text-greytheme dark:text-textdarktheme mb-2">
-                  No available time slots for {selectedGuests} guests on {format(selectedDate, "MMMM dd, yyyy")}
-                </div>
-                <div className="text-sm text-greytheme dark:text-textdarktheme">
-                  Please try a different date or number of guests.
-                </div>
-              </div>
-            )}
-            <div className="flex flex-wrap h-[284px] overflow-y-auto justify-center gap-[10px] p-[20px] rounded-[3px]">
-              {props.restaurantId && selectedDate && selectedGuests && !isLoadingTimeSlots && timeSlotsData?.available_slots && Array.isArray(timeSlotsData.available_slots) && timeSlotsData.available_slots.length > 0 ? (
-                // Use API time slots data - this takes priority
-                timeSlotsData.available_slots.map((slot, index) => {
-                  if (!slot || typeof slot.time !== 'string') {
-                    return null
-                  }
-                  
-                  const now = new Date()
-                  const isToday = selectedDate && format(selectedDate, "yyyy-MM-dd") === format(now, "yyyy-MM-dd")
-                  const [hour, minute] = slot.time.split(':').map(Number)
-                  const isPastTime = isToday && (hour < now.getHours() || (hour === now.getHours() && minute < now.getMinutes()))
-                  const isDisabled = isPastTime || !slot.available
-                  
-                  return (
-                    <button
-                      onClick={() => !isDisabled && handleTimeClick(slot.time)}
-                      className={`text-15 font-bold h-[65px] w-[65px] flex items-center justify-center border-solid border-[1px] text-blacktheme dark:text-white ${
-                        isDisabled
-                          ? "bg-softgreytheme text-greytheme cursor-not-allowed border-greytheme dark:bg-darkthemeitems dark:text-greytheme"
-                          : selectedTime === slot.time
-                          ? "bg-greentheme text-white border-greentheme"
-                          : "border-greentheme hover:bg-greentheme hover:text-white"
-                      }`}
-                      key={`slot-${index}`}
-                      disabled={!!isDisabled}
-                      title={
-                        isPastTime 
-                          ? "Time has passed" 
-                          : !slot.available
-                          ? "Time slot not available"
-                          : ""
+
+          {/* Content */}
+          <div className="p-6">
+            {/* Date Selection */}
+            {activeTab === "date" && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <Calendar className="w-5 h-5 text-greentheme" />
+                  <h3 className="text-lg font-semibold text-blacktheme dark:text-textdarktheme">
+                    Select Date
+                  </h3>
+                  {selectedDate && (
+                    <span className="text-sm text-greytheme dark:text-softwhitetheme">
+                      {format(selectedDate, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd") 
+                        ? "(Today - selected by default)" 
+                        : `${format(selectedDate, "dd MMMM yyyy")} has been selected`
                       }
-                    >
-                      {slot.time}
-                    </button>
-                  )
-                }).filter(Boolean) // Remove null entries
-              ) : !props.restaurantId || !selectedDate || !selectedGuests || isLoadingTimeSlots ? (
-                // Show fallback only when no restaurant ID, date, or guests selected, or when loading
-                [...Array(48)].map((_, index) => {
-                  const hour = Math.floor(index / 2)
-                  const minute = index % 2 === 0 ? "00" : "30"
-                  const timeString = `${hour < 10 ? "0" + hour : hour}:${minute}`
-                  const now = new Date()
-                  const isToday = selectedDate && format(selectedDate, "yyyy-MM-dd") === format(now, "yyyy-MM-dd")
-                  const isPastTime =
-                    isToday &&
-                    (hour < now.getHours() || (hour === now.getHours() && minute === "00" && now.getMinutes() >= 30))
-                  
-                  // Use memoized available slots to avoid recalculation
-                  const isAvailable = props.restaurantId ? availableSlotsForSelectedDate.includes(timeString) : true
-                  const isDisabled = isPastTime || (props.restaurantId && !isAvailable && !isLoadingAvailability)
-                  
-                  return (
+                    </span>
+                  )}
+                </div>
+                {(isLoadingAvailability || isLoadingMonthlyAvailability) && props.restaurantId && (
+                  <div className="text-center py-4">
+                    <div className="text-greytheme dark:text-textdarktheme">Loading availability...</div>
+                  </div>
+                )}
+                <OurCalendar 
+                  forbidden={true} 
+                  onClick={handleDateClick} 
+                  isDateAvailable={isDateAvailable}
+                />
+              </div>
+            )}
+            {/* Time Selection */}
+            {activeTab === "time" && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <Clock className="w-5 h-5 text-greentheme" />
+                  <h3 className="text-lg font-semibold text-blacktheme dark:text-textdarktheme">
+                    Select Time
+                  </h3>
+                  {selectedTime && (
+                    <span className="text-sm text-greytheme dark:text-softwhitetheme">
+                      {selectedTime === getDefaultTime() && !props.dateTime?.time
+                        ? "(Default next shift - selected automatically)"
+                        : `${selectedTime} has been selected`
+                      }
+                    </span>
+                  )}
+                </div>
+                {isLoadingTimeSlots && props.restaurantId && selectedDate && selectedGuests && (
+                  <div className="text-center py-4">
+                    <div className="text-greytheme dark:text-textdarktheme">Loading available time slots...</div>
+                  </div>
+                )}
+                {timeSlotsError && props.restaurantId && selectedDate && selectedGuests && (
+                  <div className="text-center py-8">
+                    <div className="text-red-500 dark:text-red-400 mb-2">
+                      Error loading time slots
+                    </div>
+                    <div className="text-sm text-greytheme dark:text-textdarktheme">
+                      Using restaurant opening hours instead.
+                    </div>
+                  </div>
+                )}
+                {!isLoadingTimeSlots && props.restaurantId && selectedDate && selectedGuests && timeSlotsData && timeSlotsData.available_slots && timeSlotsData.available_slots.length === 0 && (
+                  <div className="text-center py-8">
+                    <div className="text-greytheme dark:text-textdarktheme mb-2">
+                      No available time slots for {selectedGuests} guests on {format(selectedDate, "MMMM dd, yyyy")}
+                    </div>
+                    <div className="text-sm text-greytheme dark:text-textdarktheme">
+                      Please try a different date or number of guests.
+                    </div>
+                  </div>
+                )}
+                <div className="grid grid-cols-4 gap-3 max-h-60 overflow-y-auto">
+                  {props.restaurantId && selectedDate && selectedGuests && !isLoadingTimeSlots && timeSlotsData?.available_slots && Array.isArray(timeSlotsData.available_slots) && timeSlotsData.available_slots.length > 0 ? (
+                    // Use API time slots data - this takes priority
+                    timeSlotsData.available_slots.map((slot, index) => {
+                      if (!slot || typeof slot.time !== 'string') {
+                        return null
+                      }
+                      
+                      const now = new Date()
+                      const isToday = selectedDate && format(selectedDate, "yyyy-MM-dd") === format(now, "yyyy-MM-dd")
+                      const [hour, minute] = slot.time.split(':').map(Number)
+                      const isPastTime = isToday && (hour < now.getHours() || (hour === now.getHours() && minute < now.getMinutes()))
+                      const isDisabled = isPastTime || !slot.available
+                      
+                      return (
+                        <button
+                          onClick={() => !isDisabled && handleTimeClick(slot.time)}
+                          className={`p-3 rounded-xl border transition-all text-center ${
+                            isDisabled
+                              ? "border-softgreytheme bg-softgreytheme text-greytheme cursor-not-allowed dark:bg-darkthemeitems dark:text-greytheme dark:border-subblack"
+                              : selectedTime === slot.time
+                              ? "border-greentheme bg-greentheme text-whitetheme"
+                              : "border-softgreytheme dark:border-subblack hover:border-greentheme bg-whitetheme dark:bg-bgdarktheme2 text-blacktheme dark:text-textdarktheme"
+                          }`}
+                          key={`slot-${index}`}
+                          disabled={!!isDisabled}
+                          title={
+                            isPastTime 
+                              ? "Time has passed" 
+                              : !slot.available
+                              ? "Time slot not available"
+                              : ""
+                          }
+                        >
+                          {slot.time}
+                        </button>
+                      )
+                    }).filter(Boolean) // Remove null entries
+                  ) : !props.restaurantId || !selectedDate || !selectedGuests || isLoadingTimeSlots ? (
+                    // Show fallback only when no restaurant ID, date, or guests selected, or when loading
+                    [...Array(48)].map((_, index) => {
+                      const hour = Math.floor(index / 2)
+                      const minute = index % 2 === 0 ? "00" : "30"
+                      const timeString = `${hour < 10 ? "0" + hour : hour}:${minute}`
+                      const now = new Date()
+                      const isToday = selectedDate && format(selectedDate, "yyyy-MM-dd") === format(now, "yyyy-MM-dd")
+                      const isPastTime =
+                        isToday &&
+                        (hour < now.getHours() || (hour === now.getHours() && minute === "00" && now.getMinutes() >= 30))
+                      
+                      // Use memoized available slots to avoid recalculation
+                      const isAvailable = props.restaurantId ? availableSlotsForSelectedDate.includes(timeString) : true
+                      const isDisabled = isPastTime || (props.restaurantId && !isAvailable && !isLoadingAvailability)
+                      
+                      return (
+                        <button
+                          onClick={() => !isDisabled && handleTimeClick(timeString)}
+                          className={`p-3 rounded-xl border transition-all text-center ${
+                            isDisabled
+                              ? "border-softgreytheme bg-softgreytheme text-greytheme cursor-not-allowed dark:bg-darkthemeitems dark:text-greytheme dark:border-subblack"
+                              : selectedTime === timeString
+                              ? "border-greentheme bg-greentheme text-whitetheme"
+                              : "border-softgreytheme dark:border-subblack hover:border-greentheme bg-whitetheme dark:bg-bgdarktheme2 text-blacktheme dark:text-textdarktheme"
+                          }`}
+                          key={index}
+                          disabled={!!isDisabled}
+                          title={
+                            isPastTime 
+                              ? "Time has passed" 
+                              : !isAvailable && props.restaurantId 
+                              ? "Restaurant is closed at this time" 
+                              : ""
+                          }
+                        >
+                          {timeString}
+                        </button>
+                      )
+                    })
+                  ) : null}
+                </div>
+              </div>
+            )}
+            {/* Guest Selection */}
+            {activeTab === "guest" && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <Users className="w-5 h-5 text-greentheme" />
+                  <h3 className="text-lg font-semibold text-blacktheme dark:text-textdarktheme">
+                    Number of Guests
+                  </h3>
+                  {selectedGuests && (
+                    <span className="text-sm text-greytheme dark:text-softwhitetheme">
+                      {selectedGuests === getDefaultGuests() && !props.dateTime?.guests
+                        ? `${selectedGuests} guests (Default selection)`
+                        : `${selectedGuests} guests have been selected`
+                      }
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-5 gap-3">
+                  {[...Array(props.maxGuests ? props.maxGuests : 15)].map((_, index) => (
                     <button
-                      onClick={() => !isDisabled && handleTimeClick(timeString)}
-                      className={`text-15 font-bold h-[65px] w-[65px] flex items-center justify-center border-solid border-[1px] text-blacktheme dark:text-white ${
-                        isDisabled
-                          ? "bg-softgreytheme text-greytheme cursor-not-allowed border-greytheme dark:bg-darkthemeitems dark:text-greytheme"
-                          : selectedTime === timeString
-                          ? "bg-greentheme text-white border-greentheme"
-                          : "border-greentheme hover:bg-greentheme hover:text-white"
+                      className={`p-4 rounded-xl border transition-all text-center ${
+                        selectedGuests === index + 1
+                          ? "border-greentheme bg-greentheme text-whitetheme"
+                          : "border-softgreytheme dark:border-subblack hover:border-greentheme bg-whitetheme dark:bg-bgdarktheme2 text-blacktheme dark:text-textdarktheme"
                       }`}
                       key={index}
-                      disabled={!!isDisabled}
-                      title={
-                        isPastTime 
-                          ? "Time has passed" 
-                          : !isAvailable && props.restaurantId 
-                          ? "Restaurant is closed at this time" 
-                          : ""
-                      }
+                      onClick={() => handleGuestClick(index + 1)}
                     >
-                      {timeString}
+                      {index + 1}
                     </button>
-                  )
-                })
-              ) : null}
-            </div>
-          </div>
-        )}
-        {activeTab === "guest" && (
-          <div className="content">
-            <div className="text-[20px] text-left mx-[30px] mt-[1em] mb-[.5em] font-bold text-blacktheme dark:text-textdarktheme">
-              {selectedGuests ? (
-                <>
-                  {selectedGuests} <span className="font-semibold">
-                    {selectedGuests === getDefaultGuests() && !props.dateTime?.guests
-                      ? "guests (Default selection)"
-                      : "guests have been selected"
-                    }
-                  </span>
-                </>
-              ) : (
-                <span className="font-semibold">Select number of guests</span>
-              )}
-            </div>
-            <div className="flex flex-wrap justify-center gap-[10px] p-[20px] rounded-[3px]">
-              {[...Array(props.maxGuests ? props.maxGuests : 15)].map((_, index) => (
-                <button
-                  className={`text-15 hover:bg-greentheme hover:text-white font-bold h-[65px] w-[65px] flex items-center justify-center border-solid border-[1px] border-greentheme text-blacktheme dark:text-white ${
-                    selectedGuests === index + 1 ? "bg-greentheme text-white" : ""
-                  }`}
-                  key={index}
-                  onClick={() => handleGuestClick(index + 1)}
-                >
-                  {index + 1}
-                </button>
-              ))}
-              {!props.maxGuests && (
-                <>
-                  <div className="text-center w-full my-2 text-blacktheme dark:text-textdarktheme">
-                    {" "}
-                    Or Enter number of guests{" "}
-                  </div>
-                  <div>
-                    <div className="flex rounded-lg">
+                  ))}
+                </div>
+                {!props.maxGuests && (
+                  <div className="space-y-3">
+                    <div className="text-center text-blacktheme dark:text-textdarktheme">
+                      Or Enter number of guests
+                    </div>
+                    <div className="flex rounded-xl overflow-hidden">
                       <input
                         type="number"
                         min={props.minGuests || 1}
                         name="note"
                         placeholder="Enter number of guests"
                         value={selectedGuests || ""}
-                        className="w-full p-3 border border-softgreytheme dark:border-darkthemeitems rounded-s-lg bg-whitetheme dark:bg-darkthemeitems text-blacktheme dark:text-white"
+                        className="flex-1 p-3 border border-softgreytheme dark:border-subblack bg-whitetheme dark:bg-bgdarktheme2 text-blacktheme dark:text-textdarktheme rounded-l-xl"
                         onChange={(e) => setSelectedGuests(Number(e.target.value) || null)}
                       />
                       <button
                         type="button"
                         onClick={() => selectedGuests && handleGuestClick(selectedGuests)}
-                        className="btn-primary rounded-none rounded-e-lg"
+                        className="px-6 bg-greentheme text-whitetheme hover:bg-greentheme/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-r-xl transition-colors"
                         disabled={!selectedGuests || selectedGuests < (props.minGuests || 1)}
                       >
                         Confirm
                       </button>
                     </div>
                   </div>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-        {activeTab === "offers" && (
-          <div className="content">
-            <div className="text-[20px] text-left mx-[30px] mt-[1em] mb-[.5em] font-bold text-blacktheme dark:text-textdarktheme">
-              <span className="font-semibold">Select an offer (optional)</span>
-            </div>
-            {isLoadingOffers && props.restaurantId && (
-              <div className="text-center py-4">
-                <div className="text-greytheme dark:text-textdarktheme">Loading offers...</div>
-              </div>
-            )}
-            <div className="h-[284px] overflow-y-auto px-[20px] py-[10px]">
-              <div className="space-y-3">
-                {!isLoadingOffers && validOffers.length === 0 ? (
-                  <div className="text-center text-greytheme dark:text-textdarktheme/70 py-8">
-                    {offers && offers.length > 0
-                      ? "No offers available for selected date/time"
-                      : "No offers available"}
-                  </div>
-                ) : (
-                  validOffers.map((offer, index) => (
-                    <div
-                      key={`${offer.title}-${index}`}
-                      onClick={() => handleOfferClick(offer.id)}
-                      className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                        selectedOffer === offer.id
-                          ? "border-greentheme bg-softgreentheme dark:bg-greentheme/20"
-                          : "border-softgreytheme dark:border-darkthemeitems hover:border-greentheme/50 dark:hover:border-greentheme/30"
-                      } bg-whitetheme dark:bg-darkthemeitems`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3
-                              className={`font-bold ${
-                                selectedOffer === offer.id ? "text-greentheme" : "text-blacktheme dark:text-white"
-                              }`}
-                            >
-                              {offer.title}
-                            </h3>
-                            <span
-                              className={`text-xs px-2 py-1 rounded-full font-bold ${
-                                selectedOffer === offer.id
-                                  ? "bg-greentheme text-white"
-                                  : "bg-warning-soft text-orangetheme dark:bg-orangetheme/20 dark:text-orangetheme"
-                              }`}
-                            >
-                              {formatPercentage(offer.percentage)}
-                            </span>
-                          </div>
-                          <p className={`text-sm mt-1 text-greytheme dark:text-textdarktheme/70`}>
-                            {offer.description}
-                          </p>
-                          <div className="mt-2 text-xs space-y-1">
-                            <div className={`text-greytheme dark:text-textdarktheme/60`}>
-                              Valid: {new Date(offer.valid_from_date).toLocaleDateString()} -{" "}
-                              {new Date(offer.valid_to_date).toLocaleDateString()}
-                            </div>
-                            <div className={`text-greytheme dark:text-textdarktheme/60`}>
-                              Time: {offer.time_range_from} - {offer.time_range_to}
-                            </div>
-                          </div>
-                        </div>
-                        <div
-                          className={`w-5 h-5 rounded-full border flex-shrink-0 ml-3 ${
-                            selectedOffer === offer.id
-                              ? "border-greentheme bg-greentheme"
-                              : "border-softgreytheme dark:border-subblack"
-                          }`}
-                        >
-                          {selectedOffer === offer.id && (
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              viewBox="0 0 24 24"
-                              fill="white"
-                              className="w-5 h-5"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M19.916 4.626a.75.75 0 01.208 1.04l-9 13.5a.75.75 0 01-1.154.114l-6-6a.75.75 0 011.06-1.06l5.353 5.353 8.493-12.739a.75.75 0 011.04-.208z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))
                 )}
               </div>
-            </div>
-            <div className="flex justify-center gap-3 p-4">
-              <button
-                onClick={handleSkipOffers}
-                className={`px-6 py-2 rounded-lg border border-softgreytheme text-greytheme hover:bg-softgreytheme dark:border-textdarktheme/20 dark:text-textdarktheme dark:hover:bg-darkthemeitems`}
-              >
-                Skip
-              </button>
-              <button onClick={handleContinueWithOffer} className="btn-primary" disabled={!selectedOffer}>
-                Continue
-              </button>
-            </div>
-          </div>
-        )}
-        {activeTab === "confirm" && (
-          <div className="content">
-            <div className="text-[20px] text-left mx-[30px] mt-[1em] mb-[.5em] font-bold text-blacktheme dark:text-textdarktheme">
-              <span className="font-[500] mr-2">Your reservation is set for</span>{" "}
-              {selectedDate && format(selectedDate, "dd MMMM yyyy")} <span className="font-semibold mx-2">at</span>
-              {selectedTime} <span className="font-semibold mx-2">for</span>
-              {selectedGuests} <span className="font-semibold">guests</span>
-            </div>
-            {selectedOffer && validOffers.find((o) => o.id === selectedOffer) && (
-              <div className={`mx-[30px] mt-3 p-3 rounded-lg bg-softgreentheme/20 dark:bg-darkthemeitems`}>
-                <div className="font-medium text-greentheme">Selected Offer:</div>
-                <div className={`font-semibold text-blacktheme dark:text-white`}>
-                  {validOffers.find((o) => o.id === selectedOffer)?.title}
+            )}
+            {/* Offers Selection */}
+            {activeTab === "offers" && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-5 h-5 rounded-full bg-greentheme flex items-center justify-center">
+                    <span className="text-xs text-whitetheme font-bold">%</span>
+                  </div>
+                  <h3 className="text-lg font-semibold text-blacktheme dark:text-textdarktheme">
+                    Select an offer (optional)
+                  </h3>
                 </div>
-                <div className="text-sm mt-1">
-                  <span className="bg-warning-soft text-orangetheme dark:bg-orangetheme/20 dark:text-orangetheme px-2 py-1 rounded-full text-xs font-bold">
-                    {validOffers.find((o) => o.id === selectedOffer)?.percentage}% OFF
-                  </span>
+                {isLoadingOffers && props.restaurantId && (
+                  <div className="text-center py-4">
+                    <div className="text-greytheme dark:text-textdarktheme">Loading offers...</div>
+                  </div>
+                )}
+                <div className="max-h-60 overflow-y-auto space-y-3">
+                  {!isLoadingOffers && validOffers.length === 0 ? (
+                    <div className="text-center text-greytheme dark:text-textdarktheme/70 py-8">
+                      {offers && offers.length > 0
+                        ? "No offers available for selected date/time"
+                        : "No offers available"}
+                    </div>
+                  ) : (
+                    validOffers.map((offer, index) => (
+                      <div
+                        key={`${offer.title}-${index}`}
+                        onClick={() => handleOfferClick(offer.id)}
+                        className={`p-4 border rounded-xl cursor-pointer transition-all ${
+                          selectedOffer === offer.id
+                            ? "border-greentheme bg-softgreentheme dark:bg-greentheme/20"
+                            : "border-softgreytheme dark:border-subblack hover:border-greentheme/50 dark:hover:border-greentheme/30"
+                        } bg-whitetheme dark:bg-bgdarktheme2`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3
+                                className={`font-bold ${
+                                  selectedOffer === offer.id ? "text-greentheme" : "text-blacktheme dark:text-textdarktheme"
+                                }`}
+                              >
+                                {offer.title}
+                              </h3>
+                              <span
+                                className={`text-xs px-2 py-1 rounded-full font-bold ${
+                                  selectedOffer === offer.id
+                                    ? "bg-greentheme text-whitetheme"
+                                    : "bg-warning-soft text-orangetheme dark:bg-orangetheme/20 dark:text-orangetheme"
+                                }`}
+                              >
+                                {formatPercentage(offer.percentage)}
+                              </span>
+                            </div>
+                            <p className="text-sm mt-1 text-greytheme dark:text-textdarktheme/70">
+                              {offer.description}
+                            </p>
+                            <div className="mt-2 text-xs space-y-1">
+                              <div className="text-greytheme dark:text-textdarktheme/60">
+                                Valid: {new Date(offer.valid_from_date).toLocaleDateString()} -{" "}
+                                {new Date(offer.valid_to_date).toLocaleDateString()}
+                              </div>
+                              <div className="text-greytheme dark:text-textdarktheme/60">
+                                Time: {offer.time_range_from} - {offer.time_range_to}
+                              </div>
+                            </div>
+                          </div>
+                          <div
+                            className={`w-5 h-5 rounded-full border flex-shrink-0 ml-3 flex items-center justify-center ${
+                              selectedOffer === offer.id
+                                ? "border-greentheme bg-greentheme"
+                                : "border-softgreytheme dark:border-subblack"
+                            }`}
+                          >
+                            {selectedOffer === offer.id && (
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                fill="white"
+                                className="w-3 h-3"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M19.916 4.626a.75.75 0 01.208 1.04l-9 13.5a.75.75 0 01-1.154.114l-6-6a.75.75 0 011.06-1.06l5.353 5.353 8.493-12.739a.75.75 0 011.04-.208z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
-                <div className="text-xs mt-2 text-greytheme dark:text-textdarktheme/70">
-                  {validOffers.find((o) => o.id === selectedOffer)?.description}
+                <div className="flex justify-center gap-3">
+                  <button
+                    onClick={handleSkipOffers}
+                    className="px-6 py-2 rounded-xl border border-softgreytheme dark:border-subblack text-greytheme dark:text-textdarktheme hover:bg-softgreytheme dark:hover:bg-bgdarktheme2 transition-colors"
+                  >
+                    Skip
+                  </button>
+                  <button 
+                    onClick={handleContinueWithOffer} 
+                    className="px-6 py-2 rounded-xl bg-greentheme text-whitetheme hover:bg-greentheme/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" 
+                    disabled={!selectedOffer}
+                  >
+                    Continue
+                  </button>
                 </div>
               </div>
             )}
-            <div className="flex flex-wrap justify-center gap-[10px] p-[20px] rounded-[3px]">
-              <button onClick={handleConfirmClick} className="btn-primary">
-                Confirm Reservation
-              </button>
+            {/* Confirmation */}
+            {activeTab === "confirm" && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-5 h-5 rounded-full bg-greentheme flex items-center justify-center">
+                    <span className="text-xs text-whitetheme font-bold">✓</span>
+                  </div>
+                  <h3 className="text-lg font-semibold text-blacktheme dark:text-textdarktheme">
+                    Confirm Your Reservation
+                  </h3>
+                </div>
+                
+                <div className="p-4 bg-softgreentheme dark:bg-greentheme/10 rounded-xl border border-greentheme/20">
+                  <h4 className="font-semibold text-blacktheme dark:text-textdarktheme mb-3">Reservation Details:</h4>
+                  <div className="space-y-2 text-sm text-blacktheme dark:text-textdarktheme">
+                    <div className="flex justify-between">
+                      <span className="font-medium">Date:</span>
+                      <span>{selectedDate && format(selectedDate, "dd MMMM yyyy")}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-medium">Time:</span>
+                      <span>{selectedTime}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-medium">Guests:</span>
+                      <span>{selectedGuests} {selectedGuests === 1 ? 'person' : 'people'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {selectedOffer && validOffers.find((o) => o.id === selectedOffer) && (
+                  <div className="p-4 rounded-xl bg-softgreentheme/20 dark:bg-greentheme/10 border border-greentheme/20">
+                    <div className="font-medium text-greentheme mb-1">Selected Offer:</div>
+                    <div className="font-semibold text-blacktheme dark:text-textdarktheme">
+                      {validOffers.find((o) => o.id === selectedOffer)?.title}
+                    </div>
+                    <div className="text-sm mt-1">
+                      <span className="bg-warning-soft text-orangetheme dark:bg-orangetheme/20 dark:text-orangetheme px-2 py-1 rounded-full text-xs font-bold">
+                        {validOffers.find((o) => o.id === selectedOffer)?.percentage}% OFF
+                      </span>
+                    </div>
+                    <div className="text-xs mt-2 text-greytheme dark:text-textdarktheme/70">
+                      {validOffers.find((o) => o.id === selectedOffer)?.description}
+                    </div>
+                  </div>
+                )}
+
+                <button 
+                  onClick={handleConfirmClick} 
+                  className="w-full py-3 rounded-xl bg-greentheme text-whitetheme hover:bg-greentheme/90 transition-colors font-medium"
+                >
+                  Confirm Reservation
+                </button>
+              </div>
+            )}
+
+            {/* Current selection summary for non-confirm steps */}
+            {activeTab !== "confirm" && (
+              <div className="mt-6 p-4 bg-softgreentheme dark:bg-greentheme/10 rounded-xl border border-greentheme/20">
+                <h4 className="font-semibold text-blacktheme dark:text-textdarktheme mb-2">Current Selection:</h4>
+                <div className="space-y-1 text-sm text-blacktheme dark:text-textdarktheme">
+                  <p><span className="font-medium">Date:</span> {selectedDate ? format(selectedDate, "dd MMMM yyyy") : "Not selected"}</p>
+                  <p><span className="font-medium">Time:</span> {selectedTime || "Not selected"}</p>
+                  <p><span className="font-medium">Guests:</span> {selectedGuests ? `${selectedGuests} ${selectedGuests === 1 ? 'person' : 'people'}` : "Not selected"}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Footer - only show for confirm step */}
+          {activeTab === "confirm" && (
+            <div className="sticky bottom-0 bg-whitetheme dark:bg-bgdarktheme border-t border-softgreytheme dark:border-subblack p-6 rounded-b-2xl">
+              <div className="text-center text-sm text-greytheme dark:text-textdarktheme">
+                Click "Confirm Reservation" to proceed with your booking
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Auth Options Modal */}
+      {showAuthOptions && (
+        <>
+          <div className="fixed inset-0 bg-blacktheme/40 dark:bg-blacktheme/60 backdrop-blur-sm z-60" onClick={handleCloseAuthOptions} />
+          <div className="fixed inset-0 flex items-center justify-center z-70 p-4">
+            <div className="bg-whitetheme dark:bg-bgdarktheme rounded-2xl shadow-2xl max-w-sm w-full border border-softgreytheme dark:border-subblack">
+              
+              {/* Header */}
+              <div className="p-6 border-b border-softgreytheme dark:border-subblack">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-bold text-blacktheme dark:text-textdarktheme">
+                    Complete Your Reservation
+                  </h2>
+                  <button
+                    onClick={handleCloseAuthOptions}
+                    className="p-2 hover:bg-softgreytheme dark:hover:bg-bgdarktheme2 rounded-full transition-colors"
+                  >
+                    <X className="w-5 h-5 text-greytheme dark:text-softwhitetheme" />
+                  </button>
+                </div>
+                <p className="text-sm text-greytheme dark:text-softwhitetheme mt-2">
+                  To complete your reservation, please choose one of the options below:
+                </p>
+              </div>
+
+              {/* Content */}
+              <div className="p-6 space-y-4">
+                <button
+                  onClick={handleLoginChoice}
+                  className="w-full p-4 border border-greentheme rounded-xl bg-greentheme text-whitetheme hover:bg-greentheme/90 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <User className="w-5 h-5" />
+                    <div className="text-left flex-1">
+                      <div className="font-semibold">Sign In</div>
+                      <div className="text-sm opacity-90">Access your account and manage reservations</div>
+                    </div>
+                  </div>
+                </button>
+
+                <div className="text-center text-xs text-greytheme dark:text-softwhitetheme">
+                  or
+                </div>
+
+                <button
+                  onClick={handleGuestChoice}
+                  className="w-full p-4 border border-softgreytheme dark:border-subblack rounded-xl bg-whitetheme dark:bg-bgdarktheme2 text-blacktheme dark:text-textdarktheme hover:bg-softgreytheme dark:hover:bg-subblack transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <Users className="w-5 h-5" />
+                    <div className="text-left flex-1">
+                      <div className="font-semibold">Continue as Guest</div>
+                      <div className="text-sm text-greytheme dark:text-softwhitetheme">
+                        Fill in your details without creating an account
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              </div>
             </div>
           </div>
-        )}
-      </div>
+        </>
+      )}
       
       {/* Auth Popup Modal */}
       {showAuthPopup && (
@@ -843,9 +1017,10 @@ const ReservationProcess: React.FC<ReservationProcessProps> = (props) => {
           onSuccess={handleBookingSuccess}
           restaurantId={props.restaurantId}
           bookingData={selectedData}
+          continueAsGuest={continueAsGuest}
         />
       )}
-    </div>
+    </>
   )
 }
 
